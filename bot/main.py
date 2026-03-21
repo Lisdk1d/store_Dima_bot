@@ -9,8 +9,12 @@ from fluentogram import TranslatorHub, FluentTranslator
 from fluent_compiler.bundle import FluentBundle
 
 from src.utils.config import settings
-from src.utils.middlewares import ThrottlingMiddleware, UserMiddleware, TranslateMiddleware, AlbumMiddleware
+from src.utils.middlewares import ThrottlingMiddleware, TranslateMiddleware, AlbumMiddleware
 from src.handlers import router as main_router
+
+"""
+UserMiddleware
+"""
 
 
 logging.basicConfig(lavel=logging.INFO)
@@ -27,8 +31,8 @@ t_hub = TranslatorHub(
             translator=FluentBundle.from_files(
                 "ru-RU",
                 filenames=[
-                    "src/i18n/ru/text.ftl",
-                    "src/i18n/ru/button.ftl",
+                    "bot/src/i18n/ru/text.ftl",
+                    "bot/src/i18n/ru/button.ftl",
                 ]
             ),
         )
@@ -47,19 +51,19 @@ async def main():
 
     dp = Dispatcher(t_hub=t_hub)
     dp.message.middleware(ThrottlingMiddleware())
-    dp.message.outer_middleware(UserMiddleware())
+#    dp.message.outer_middleware(UserMiddleware())
     dp.message.outer_middleware(TranslateMiddleware())
     dp.message.outer_middleware(AlbumMiddleware())
 
     dp.callback_query.middleware(ThrottlingMiddleware())
-    dp.callback_query.outer_middleware(UserMiddleware())
+#    dp.callback_query.outer_middleware(UserMiddleware())
     dp.callback_query.outer_middleware(TranslateMiddleware())
     dp.callback_query.outer_middleware(AlbumMiddleware())
 
     dp.include_router(main_router)
 
     try:
-        await bot.start_poling()
+        await dp.start_polling(bot)
     except ValueError as e:
         logger.error("ValueError occurred: %s: ", e)
     except KeyError as e:

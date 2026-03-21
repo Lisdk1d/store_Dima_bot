@@ -39,10 +39,11 @@ class TranslateMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-met
         return await handler(event, data)
 
 
+"""
 class UserMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
-    """
+    
     Automatic user insert to db
-    """
+    
 
     async def __call__(
             self,
@@ -84,6 +85,7 @@ class UserMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
 
         data["user"] = user
         return await handler(event, data)
+"""
 
 
 class ThrottlingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
@@ -137,12 +139,18 @@ class AlbumMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
     async def __call__(
             self,
             handler: Callable[[Message, dict[str, Any]], Awaitable[Any]],
-            message: Message,
+            event: Any,
             data: dict[str, Any]
     ) -> Any:
-        if not message.media_group_id:
-            await handler(message, data)
+
+        if not isinstance(event, Message):
+            await handler(event, data)
             return
+
+        message = event
+
+        if not message.media_group_id:
+            return await handler(message, data)
         try:
             self.album_data[message.media_group_id].append(message)
         except KeyError:
