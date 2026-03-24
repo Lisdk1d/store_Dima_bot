@@ -3,16 +3,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     BOT_TOKEN: str
-    '''
+
     DB_USER: str
     DB_PASS: str
-    DB_HOST: str
-    DB_PORT: int
     DB_NAME: str
-    DB_ROOT_NAME: str
-    '''
+    MONGO_URL: str
+    ADMIN_IDS: list
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 settings = Settings()

@@ -11,6 +11,7 @@ from fluent_compiler.bundle import FluentBundle
 from src.utils.config import settings
 from src.utils.middlewares import ThrottlingMiddleware, TranslateMiddleware, AlbumMiddleware
 from src.handlers import router as main_router
+from src.utils.db import db
 
 """
 UserMiddleware
@@ -41,6 +42,11 @@ t_hub = TranslatorHub(
 )
 
 
+async def on_startup():
+
+    await db.check_connection()
+
+
 async def main():
     session = AiohttpSession()
     bot = Bot(
@@ -63,6 +69,7 @@ async def main():
     dp.include_router(main_router)
 
     try:
+        dp.startup.register(on_startup)
         await dp.start_polling(bot)
     except ValueError as e:
         logger.error("ValueError occurred: %s: ", e)
