@@ -4,38 +4,46 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_start_kb(locale) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-
     builder.button(text=locale.asort_button(), callback_data="asort")
     builder.button(text=locale.manager_button(), url="https://t.me/allvade")
     builder.button(text=locale.locale_button(), callback_data="address")
     builder.button(text=locale.trans_button(), callback_data="delivery")
     builder.button(text=locale.reviews_button(), callback_data="reviews")
     builder.button(text=locale.site_button(), url="https://storedima.ru")
-
     builder.adjust(1, 1, 2, 2)
-
     return builder.as_markup()
 
 
-def get_assortment_keyboard() -> InlineKeyboardMarkup:
+async def get_assortment_keyboard(categories: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-
-    categories = ["Смартфоны", "Планшеты", "Ноутбуки"]
     for cat in categories:
-        builder.row(InlineKeyboardButton(text=cat, callback_data=f"cat_{cat}"))
+        builder.button(text=str(cat), callback_data=f"cat_{cat}")
+
+    builder.adjust(1)
     builder.row(InlineKeyboardButton(
-        text="⬅️ Назад", callback_data="main_menu"))
+        text="⬅️ Главное меню", callback_data="main_menu"))
     return builder.as_markup()
 
 
-def get_models_keyboard(category: str) -> InlineKeyboardMarkup:
+async def get_models_keyboard(category: str, models: list) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    if category == "Смартфоны":
-        models = ["15", "16", "17", "17 Pro", "17 Pro Max"]
-        for model in models:
-            builder.row(InlineKeyboardButton(
-                text=model, callback_data=f"model_{model}"))
 
-    builder.row(InlineKeyboardButton(text="⬅️ К категориям",
-                callback_data="back_to_assortment"))
+    for model in models:
+        model_str = str(model).strip()
+        if model_str:
+
+            button_text = model_str if len(
+                model_str) > 2 else model_str.upper()
+            builder.button(
+                text=button_text,
+                callback_data=f"model_{model_str}"
+            )
+
+    builder.adjust(1 if len(models) <= 2 else 2)
+
+    builder.row(InlineKeyboardButton(
+        text=f"⬅️ К категориям",
+        callback_data="del_card_with_exit"
+    ))
+
     return builder.as_markup()

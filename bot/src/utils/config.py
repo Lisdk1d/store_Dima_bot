@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DB_PASS: str
     DB_NAME: str
     MONGO_URL: str
-    ADMIN_IDS: list
+    ADMIN_IDS: list[int]
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

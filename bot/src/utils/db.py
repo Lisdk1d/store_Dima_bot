@@ -14,28 +14,51 @@ class Database:
         self.users = self.db.users
         self.products = self.db.products
 
+    async def get_unique_categories(self):
+
+        return await self.products.distinct("category", {"stock": {"$gt": 0}})
+
+    async def get_models_by_category(self, category: str):
+
+        return await self.products.distinct("model", {"category": category, "stock": {"$gt": 0}})
+
+    async def get_product_details(self, model: str):
+
+        return await self.products.find_one({"model": model, "stock": {"$gt": 0}})
+
     async def check_connection(self):
 
         try:
             await self.client.admin.command('ping')
             print("✅ Успешное подключение к MongoDB")
 
-            test_col = self.db["test_connection"]
-            await test_col.insert_one({"status": "ready", "version": 1.0})
-            logging.info("✅ Тестовая запись успешно создана")
-
         except Exception as e:
             print(f"❌ Ошибка подключения к MongoDB: {e}")
 
-    async def add_product(self, description: str, photo_id: str, user_id: int):
+    async def add_product(self, category: str, model: str, price: int, description: str, photo_id: str, stock: int = 1):
         document = {
-            "user_id": user_id,
+            "category": category,
+            "model": model,
             "description": description,
+            "price": price,
             "photo_id": photo_id,
+            "stock": stock,
             "created_at": datetime.now()
         }
         result = await self.products.insert_one(document)
         return result.inserted_id
+
+    async def delete_model(self, category: str, model: str):
+        try:
+            result = await self.products.delete_one({
+                "category": category,
+                "model": model
+            })
+
+            return result.deleted_count > 0
+        except Exception as e:
+            logging.error(f"Ошибка при удалении товара: {e}")
+            return False
 
 
 db = Database()
