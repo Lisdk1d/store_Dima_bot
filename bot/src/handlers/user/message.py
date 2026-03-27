@@ -74,7 +74,7 @@ async def process_photo(message: Message, state: FSMContext):
             f"🆔 ID: <code>{inserted_id}</code>\n"
             f"📁 Категория: {data['category']}\n"
             f"📱 Модель: {data['model']}\n"
-            f"💰 Цена: {data["price"]}"
+            f"💰 Цена: {data['price']}"
         )
     except Exception as e:
         await message.answer(f"❌ Ошибка при добавлении товара:\n{str(e)}")

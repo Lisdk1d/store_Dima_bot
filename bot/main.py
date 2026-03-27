@@ -32,8 +32,8 @@ t_hub = TranslatorHub(
             translator=FluentBundle.from_files(
                 "ru-RU",
                 filenames=[
-                    "bot/src/i18n/ru/text.ftl",
-                    "bot/src/i18n/ru/button.ftl",
+                    "src/i18n/ru/text.ftl",
+                    "src/i18n/ru/button.ftl",
                 ]
             ),
         )
