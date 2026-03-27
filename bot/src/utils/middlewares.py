@@ -39,55 +39,6 @@ class TranslateMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-met
         return await handler(event, data)
 
 
-"""
-class UserMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
-    
-    Automatic user insert to db
-    
-
-    async def __call__(
-            self,
-            handler: Callable[[Update, Dict[str, Any]], Awaitable[Any]],
-            event: Update,
-            data: Dict[str, Any]
-    ) -> Any:
-        if not hasattr(event, "from_user") or event.from_user is None:
-            return await handler(event, data)
-
-        user = await data["db"].users.find_one(f={"id": event.from_user.id})
-
-        if isinstance(event, Message):
-            if user is None:
-                new_user = event.from_user.model_dump()
-                new_user["created_at"] = int(time.time())
-                new_user["updated_at"] = int(time.time())
-
-                if event.text and "rl" in event.text:
-                    try:
-                        new_user["refer_id"] = int(
-                            event.text.replace("rl", ""))
-                    except ValueError:
-                        pass
-
-                user = User(**new_user)
-                await data["db"].users.insert_one(user.model_dump())
-            elif user.blocked_at is not None:
-                await data["db"].users.update_one(
-                    {"chat_id": event.from_user.id}, {
-                        "$set": {"blocked_at": None}}
-                )
-
-            if user.updated_at < time.time() - 300:
-                await data["db"].users.update_one(
-                    {"chat_id": event.from_user.id},
-                    {"$set": event.from_user.model_dump()},
-                )
-
-        data["user"] = user
-        return await handler(event, data)
-"""
-
-
 class ThrottlingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
     """
     Throttling middleware
