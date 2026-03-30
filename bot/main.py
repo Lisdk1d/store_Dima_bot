@@ -13,10 +13,6 @@ from src.utils.middlewares import ThrottlingMiddleware, TranslateMiddleware, Alb
 from src.handlers import router as main_router
 from src.utils.db import db
 
-"""
-UserMiddleware
-"""
-
 
 logging.basicConfig(lavel=logging.INFO)
 logger = logging.getLogger(__name__)
