@@ -23,6 +23,15 @@ class Database:
             logger.exception("Failed to fetch unique categories: %s", error)
             return []
 
+    async def get_all_categories(self):
+        """Return all categories present in DB."""
+        try:
+            categories = await self.products.distinct("category")
+            return [category for category in categories if category]
+        except Exception as error:
+            logger.exception("Failed to fetch all categories: %s", error)
+            return []
+
     async def get_models_by_category(self, category: str):
         """Return available models for a given category."""
         query = {"category": category, **self._in_stock_filter}
@@ -109,12 +118,14 @@ class Database:
             logger.exception("Ошибка при получении корзины пользователя '%s': %s", user_id, error)
         return []
 
-    async def add_to_cart(self, user_id: int, model_name: str, price: int):
+    async def add_to_cart(self, user_id: int, model_name: str, price: int, category_name: str | None = None):
         """Add an item to the user's cart."""
         item_data = {
             "model_name": model_name,
             "price": price
         }
+        if category_name:
+            item_data["category_name"] = category_name
 
         try:
             await self.users.update_one(

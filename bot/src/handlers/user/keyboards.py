@@ -1,3 +1,4 @@
+from fluentogram import TranslatorRunner
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
@@ -5,7 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 def get_start_kb(locale) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text=locale.asort_button(), callback_data="asort")
-    builder.button(text="🛒 Корзина", callback_data="cart_show")
+    builder.button(text=locale.cart_button(), callback_data="cart_show")
     builder.button(text=locale.manager_button(), url="https://t.me/allvade")
     builder.button(text=locale.locale_button(), callback_data="address")
     builder.button(text=locale.trans_button(), callback_data="delivery")
@@ -15,7 +16,7 @@ def get_start_kb(locale) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-async def get_assortment_keyboard(categories: list) -> InlineKeyboardMarkup:
+async def get_assortment_keyboard(categories: list, locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for category in categories:
         category_text = str(category).strip()
@@ -25,11 +26,11 @@ async def get_assortment_keyboard(categories: list) -> InlineKeyboardMarkup:
 
     builder.adjust(1)
     builder.row(InlineKeyboardButton(
-        text="⬅️ Главное меню", callback_data="main_menu"))
+        text=locale.main_menu_button(), callback_data="main_menu"))
     return builder.as_markup()
 
 
-async def get_models_keyboard(category: str, models: list) -> InlineKeyboardMarkup:
+async def get_models_keyboard(category: str, models: list, locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     for model in models:
@@ -45,39 +46,62 @@ async def get_models_keyboard(category: str, models: list) -> InlineKeyboardMark
     builder.adjust(1 if len(models) <= 2 else 2)
 
     builder.row(InlineKeyboardButton(
-        text="⬅️ К категориям",
+        text=locale.to_categories_button(),
         callback_data="del_card_with_exit"
     ))
 
     return builder.as_markup()
 
 
-async def get_item_actions_keyboard(model_name: str, price: int | str) -> InlineKeyboardMarkup:
+async def get_item_actions_keyboard(model_name: str, price: int | str, locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    cart_callback_data = f"add_to_cart|{model_name}|{price}"
+    # Keep callback payload compact and stable; price is resolved from DB on click.
+    cart_callback_data = f"add_to_cart|{model_name}"
 
     builder.row(
-        InlineKeyboardButton(text="💰 Купить", url="https://t.me/allvade"),
-        InlineKeyboardButton(text="🛒 В корзину", callback_data=cart_callback_data)
+        InlineKeyboardButton(text=locale.buy_button(), callback_data="cart_checkout"),
+        InlineKeyboardButton(text=locale.add_to_cart_button(), callback_data=cart_callback_data)
     )
 
     builder.row(
-        InlineKeyboardButton(text="⬅️ Вернуться",
+        InlineKeyboardButton(text=locale.back_button(),
                              callback_data="del_card_with_exit")
     )
 
     return builder.as_markup()
 
 
-async def get_cart_actions_keyboard(cart_items: list[dict]) -> InlineKeyboardMarkup:
+async def get_cart_actions_keyboard(cart_items: list[dict], locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
     for index, _ in enumerate(cart_items):
         builder.button(
-            text=f"❌ Удалить #{index + 1}",
+            text=locale.cart_remove_button(index=index + 1),
             callback_data=f"cart_remove|{index}"
         )
 
-    builder.button(text="🧹 Очистить корзину", callback_data="cart_clear")
+    builder.button(text=locale.cart_clear_button(), callback_data="cart_clear")
+    # Keep remove/clear buttons in separate rows.
     builder.adjust(1)
+    # Explicitly place these two buttons in one row.
+    builder.row(
+        InlineKeyboardButton(text=locale.buy_button(), callback_data="cart_checkout"),
+        InlineKeyboardButton(text=locale.cart_back_button(), callback_data="main_menu")
+    )
+    return builder.as_markup()
+
+
+async def get_cart_empty_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=locale.cart_back_button(), callback_data="main_menu")
+    )
+    return builder.as_markup()
+
+
+async def get_info_back_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=locale.cart_back_button(), callback_data="del_card_with_exit")
+    )
     return builder.as_markup()
