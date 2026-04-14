@@ -42,8 +42,24 @@ async def get_models_keyboard(category: str, models: list) -> InlineKeyboardMark
     builder.adjust(1 if len(models) <= 2 else 2)
 
     builder.row(InlineKeyboardButton(
-        text=f"⬅️ К категориям",
+        text="⬅️ К категориям",
         callback_data="del_card_with_exit"
     ))
+
+    return builder.as_markup()
+
+
+async def get_item_actions_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    builder.row(
+        InlineKeyboardButton(text="💰 Купить", url="https://t.me/allvade"),
+        InlineKeyboardButton(text="🛒 В корзину", callback_data="add_to_cart")
+    )
+
+    builder.row(
+        InlineKeyboardButton(text="⬅️ Вернуться",
+                             callback_data="del_card_with_exit")
+    )
 
     return builder.as_markup()

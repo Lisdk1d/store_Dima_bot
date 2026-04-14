@@ -1,6 +1,6 @@
 from aiogram import Router, F
 from aiogram.filters import Command
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 
 from fluentogram import TranslatorRunner
@@ -15,6 +15,11 @@ router = Router()
 
 @router.message(Command("start"))
 async def start_message(message: Message, locale: TranslatorRunner):
+    await db.create_user(
+        user_id=message.from_user.id,
+        username=message.from_user.username
+    )
+
     await message.answer(
         text=locale.welcome_text(name=message.from_user.first_name),
         reply_markup=get_start_kb(locale)
@@ -98,3 +103,26 @@ async def delete_process(message: Message, state: FSMContext):
         await message.answer(f"Документ с моделью {model_name} успешно удалён из базы")
     else:
         await message.answer(f"Модель {model_name} не найдена в базе. Проверьте правильность написания")
+
+
+@router.message(Command("cart"))
+async def show_cart(message: Message):
+
+    cart_items = await db.get_user_cart(message.from_user.id)
+
+    if not cart_items:
+        await message.answer("🛒 <b>Ваша корзина пуста</b>", parse_mode="HTML")
+        return
+
+    text = "<b>🛒 Содержимое корзины:</b>\n\n"
+    total_sum = 0
+
+    for item in cart_items:
+        model = item.get("model", "Неизвестно")
+        price = item.get("price", 0)
+        text += f"🔹 {model} — <code>{price} руб.</code>\n"
+        total_sum += price
+
+    text += f"\n<b>💰 Итого к оплате: {total_sum} руб.</b>"
+
+    await message.answer(text, parse_mode="HTML")

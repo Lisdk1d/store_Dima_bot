@@ -2,10 +2,9 @@ from aiogram import Router, Bot, F
 from aiogram.types import CallbackQuery
 from fluentogram import TranslatorRunner
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from src.utils.db import Database
-from src.handlers.user.keyboards import get_start_kb
+from src.handlers.user.keyboards import get_start_kb, get_item_actions_keyboard
 from src.utils.db import db
-from src.utils.filters import IsAdmin
+
 
 from .keyboards import get_assortment_keyboard, get_models_keyboard
 
@@ -87,20 +86,13 @@ async def show_product_card(callback: CallbackQuery):
         f"{product.get('description', 'Описание отсутствует')}\n\n"
     )
 
-    kb = InlineKeyboardBuilder()
-    kb.button(text="🛒 Купить",
-              url="https://t.me/allvade")
-    kb.button(text="⬅️ Назад к моделям",
-              callback_data=f"del_card_with_exit")
-    kb.adjust(1)
-
     try:
         if product.get("photo_id"):
 
             await callback.message.answer_photo(
                 photo=product["photo_id"],
                 caption=text,
-                reply_markup=kb.as_markup(),
+                reply_markup=await get_item_actions_keyboard(),
                 parse_mode="HTML"
             )
         else:

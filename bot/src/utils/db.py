@@ -60,5 +60,38 @@ class Database:
             logging.error(f"Ошибка при удалении товара: {e}")
             return False
 
+    async def create_user(self, user_id: int, username: str = None):
+        await self.users.update_one(
+            {"id": user_id},
+            {
+                "$set": {"username": "@" + username},
+                "$setOnInsert": {
+                    "id": user_id,
+                    "cart": [],
+                    "created_at": datetime.now()
+                }
+            },
+            upsert=True
+        )
+
+    async def get_user_cart(self, user_id: int):
+        user = await self.users.find_one({"id": user_id})
+        if user and "cart" in user:
+            return user["cart"]
+        return []
+
+    async def add_to_cart(self, user_id: int, model: str, price: int):
+
+        item_data = {
+            "model": model,
+            "price": price
+        }
+
+        await self.users.update_one(
+            {"id": user_id},
+            {"$push": {"cart": item_data}},
+            upsert=True
+        )
+
 
 db = Database()
