@@ -57,9 +57,10 @@ async def get_item_actions_keyboard(model_name: str, price: int | str, locale: T
     builder = InlineKeyboardBuilder()
     # Keep callback payload compact and stable; price is resolved from DB on click.
     cart_callback_data = f"add_to_cart|{model_name}"
+    buy_callback_data = f"buy_product|{model_name}"
 
     builder.row(
-        InlineKeyboardButton(text=locale.buy_button(), callback_data="cart_checkout"),
+        InlineKeyboardButton(text=locale.buy_button(), callback_data=buy_callback_data),
         InlineKeyboardButton(text=locale.add_to_cart_button(), callback_data=cart_callback_data)
     )
 
@@ -103,5 +104,13 @@ async def get_info_back_keyboard(locale: TranslatorRunner) -> InlineKeyboardMark
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text=locale.cart_back_button(), callback_data="del_card_with_exit")
+    )
+    return builder.as_markup()
+
+
+async def get_manager_chat_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text=locale.manager_chat_button(), url="https://t.me/allvade")
     )
     return builder.as_markup()

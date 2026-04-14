@@ -10,10 +10,11 @@ from src.handlers.user.keyboards import (
     get_cart_actions_keyboard,
     get_cart_empty_keyboard,
     get_info_back_keyboard,
+    get_manager_chat_keyboard,
 )
 from src.utils.db import db
 from src.utils.config import settings
-from .cart_utils import build_cart_text, build_manager_order_text
+from .cart_utils import build_cart_text, build_manager_order_text, build_manager_product_request_text
 
 
 from .keyboards import get_assortment_keyboard, get_models_keyboard
@@ -36,6 +37,13 @@ def _parse_add_to_cart_callback(callback_data: str) -> str | None:
 
     # Backward compatibility: older payload may include '|price'.
     model_name = payload.split("|", maxsplit=1)[0].strip()
+    return model_name or None
+
+
+def _parse_buy_product_callback(callback_data: str) -> str | None:
+    if not callback_data.startswith("buy_product|"):
+        return None
+    model_name = callback_data[len("buy_product|"):].strip()
     return model_name or None
 
 
@@ -315,3 +323,52 @@ async def checkout_cart(callback: CallbackQuery, bot: Bot, locale: TranslatorRun
         return
 
     await callback.answer(locale.cart_checkout_sent(), show_alert=True)
+    await callback.message.answer(
+        locale.cart_checkout_sent(),
+        reply_markup=await get_manager_chat_keyboard(locale)
+    )
+
+
+@router.callback_query(F.data.startswith("buy_product|"))
+async def checkout_product_from_card(callback: CallbackQuery, bot: Bot, locale: TranslatorRunner):
+    if callback.from_user is None:
+        await callback.answer(locale.user_not_defined(), show_alert=True)
+        return
+
+    callback_data = callback.data or ""
+    model_name = _parse_buy_product_callback(callback_data)
+    if not model_name:
+        await callback.answer(locale.buy_request_error(), show_alert=True)
+        return
+
+    product = await db.get_product_details(model_name)
+    if not product:
+        await callback.answer(locale.cart_product_not_found(), show_alert=True)
+        return
+
+    order_text = build_manager_product_request_text(
+        locale=locale,
+        full_name=callback.from_user.full_name,
+        username=callback.from_user.username,
+        user_id=callback.from_user.id,
+        model_name=product.get("model", model_name),
+        price=product.get("price", locale.unknown_product_price()),
+    )
+
+    sent_count = 0
+    for manager_id in settings.ADMIN_IDS:
+        try:
+            await bot.send_message(chat_id=manager_id, text=order_text, parse_mode="HTML")
+            sent_count += 1
+        except Exception as error:
+            logger.exception("Failed to send product request to manager '%s': %s", manager_id, error)
+
+    if sent_count == 0:
+        await callback.answer(locale.buy_request_error(), show_alert=True)
+        return
+
+    await callback.answer(locale.buy_request_sent(), show_alert=True)
+    await callback.message.answer(
+        locale.buy_request_sent(),
+        reply_markup=await get_manager_chat_keyboard(locale)
+    )

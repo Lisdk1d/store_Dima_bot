@@ -61,3 +61,21 @@ def build_manager_order_text(
         user_id=user_id,
         cart_items=cart_items_text,
     )
+
+
+def build_manager_product_request_text(
+    locale: TranslatorRunner,
+    full_name: str,
+    username: str | None,
+    user_id: int,
+    model_name: str,
+    price: int | float | str,
+) -> str:
+    username_text = f"@{username}" if username else locale.manager_order_username_missing()
+    return locale.manager_product_request_text(
+        full_name=full_name,
+        username=username_text,
+        user_id=user_id,
+        model_name=model_name,
+        price=price,
+    )

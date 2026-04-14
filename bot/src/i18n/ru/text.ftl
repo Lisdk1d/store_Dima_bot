@@ -126,6 +126,8 @@ cart_remove_failed = Не удалось удалить позицию
 cart_item_removed = Позиция удалена
 cart_checkout_sent = Заказ отправлен менеджеру ✅
 cart_checkout_error = Не удалось отправить заказ менеджеру
+buy_request_sent = Запрос на покупку отправлен менеджеру ✅
+buy_request_error = Не удалось отправить запрос менеджеру
 manager_order_username_missing = без username
 manager_order_text =
     🧾 <b>Новый заказ</b>
@@ -135,6 +137,15 @@ manager_order_text =
     🆔 ID: <code>{ $user_id }</code>
 
     { $cart_items }
+manager_product_request_text =
+    🧾 <b>Новая заявка на товар</b>
+
+    👤 Клиент: { $full_name }
+    🔗 Username: { $username }
+    🆔 ID: <code>{ $user_id }</code>
+
+    📱 Модель: <b>{ $model_name }</b>
+    💰 Цена: <code>{ $price } руб.</code>
 
 main_menu_button = ⬅️ Главное меню
 to_categories_button = ⬅️ К категориям
@@ -142,6 +153,7 @@ buy_button = 💰 Купить
 add_to_cart_button = 🛒 В корзину
 back_button = ⬅️ Вернуться
 cart_back_button = ⬅️ Назад
+manager_chat_button = 💬 Перейти к менеджеру
 cart_remove_button = ❌ Удалить #{ $index }
 cart_clear_button = 🧹 Очистить корзину
 
