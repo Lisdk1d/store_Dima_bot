@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import time
 from typing import Any, Awaitable, Callable, Dict, Union
 
 from fluentogram import TranslatorHub
@@ -8,8 +7,6 @@ from aiogram import BaseMiddleware
 from aiogram.types import Update, Message
 from cachetools import TTLCache
 from motor.motor_asyncio import AsyncIOMotorClient
-
-# from src.models.user import User
 
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s")
@@ -30,11 +27,20 @@ class TranslateMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-met
             event: Update,
             data: Dict[str, Any]
     ) -> Any:
-        language = data['user'].language_code if 'user' in data else 'ru'
+        user = data.get("user")
+        locale_code = getattr(user, "language_code", "ru")
 
-        hub: TranslatorHub = data.get('t_hub')
+        hub: TranslatorHub | None = data.get("t_hub")
+        if hub is None:
+            logging.error("Translator hub is missing in middleware data")
+            return await handler(event, data)
 
-        data['locale'] = hub.get_translator_by_locale(language)
+        try:
+            data["locale"] = hub.get_translator_by_locale(locale_code)
+        except Exception as error:
+            # Fallback keeps bot operational even for unknown locale values.
+            logging.exception("Failed to resolve translator for locale '%s': %s", locale_code, error)
+            data["locale"] = hub.get_translator_by_locale("ru")
 
         return await handler(event, data)
 
@@ -50,12 +56,15 @@ class ThrottlingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-me
             event: Update,
             data: Dict[str, Any],
     ) -> Any:
-        if not hasattr(event, "from_user") or event.from_user is None:
+        user = getattr(event, "from_user", None)
+        if user is None:
             return await handler(event, data)
 
-        if event.from_user.id in caches["default"]:
+        user_id = user.id
+        throttle_cache = caches["default"]
+        if user_id in throttle_cache:
             return
-        caches["default"][event.from_user.id] = None
+        throttle_cache[user_id] = None
         return await handler(event, data)
 
 
@@ -85,6 +94,7 @@ class AlbumMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
     album_data: dict = {}
 
     def __init__(self, latency: Union[int, float] = 0.6):
+        super().__init__()
         self.latency = latency
 
     async def __call__(
@@ -93,10 +103,8 @@ class AlbumMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
             event: Any,
             data: dict[str, Any]
     ) -> Any:
-
         if not isinstance(event, Message):
-            await handler(event, data)
-            return
+            return await handler(event, data)
 
         message = event
 
@@ -108,10 +116,10 @@ class AlbumMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
             self.album_data[message.media_group_id] = [message]
             await asyncio.sleep(self.latency)
 
-            data['_is_last'] = True
+            data["_is_last"] = True
             data["album"] = self.album_data[message.media_group_id]
             await handler(message, data)
 
         if message.media_group_id and data.get("_is_last"):
-            del self.album_data[message.media_group_id]
-            del data['_is_last']
+            self.album_data.pop(message.media_group_id, None)
+            data.pop("_is_last", None)
