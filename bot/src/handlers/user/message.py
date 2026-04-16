@@ -1,5 +1,4 @@
 import logging
-import re
 
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
@@ -18,7 +17,7 @@ from .keyboards import (
     get_cart_actions_keyboard,
     get_cart_empty_keyboard,
 )
-from .cart_utils import build_cart_text
+from .cart_utils import build_cart_text, format_price_with_ruble
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -115,13 +114,7 @@ async def process_price(message: Message, state: FSMContext, locale: TranslatorR
         await message.answer(locale.price_empty_error())
         return
 
-    # Accept formats like "120000", "120 000", "120,000".
-    normalized_price = re.sub(r"[^\d]", "", price_text)
-    if not normalized_price:
-        await message.answer(locale.price_invalid_error())
-        return
-
-    await state.update_data(price=int(normalized_price))
+    await state.update_data(price=price_text)
     await message.answer(locale.price_saved_next())
     await state.set_state(ProductForm.waiting_for_photo)
 
@@ -145,7 +138,7 @@ async def process_photo(message: Message, state: FSMContext, locale: TranslatorR
                 id=inserted_id,
                 category=data["category"],
                 model=data["model"],
-                price=data["price"]
+                price=format_price_with_ruble(data["price"])
             )
         )
     except Exception as error:

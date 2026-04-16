@@ -49,7 +49,7 @@ category_empty_error = Категория не может быть пустой.
 model_empty_error = Модель не может быть пустой. Введите значение ещё раз:
 description_empty_error = Описание не может быть пустым. Введите значение ещё раз:
 price_empty_error = Стоимость не может быть пустой. Введите значение ещё раз:
-price_invalid_error = Введите цену числом, например: 120000
+price_invalid_error = Введите цену в любом удобном формате
 
 category_saved_next =
     ✅ Категория сохранена!
@@ -66,10 +66,11 @@ model_saved_next =
 description_saved_next =
     ✅ Описание сохранено!
 
-    ➡️ Введите цену товара в рублях.
+    ➡️ Введите цену товара (как удобно: число, диапазон или текст).
 
-    Пример: 124990
-    (только цифры)
+    Примеры:
+    цена: от 10.000
+    цена: 10.000 - 12.000
 price_saved_next =
     ✅ Цена сохранена!
 
@@ -145,7 +146,7 @@ manager_product_request_text =
     🆔 ID: <code>{ $user_id }</code>
 
     📱 Модель: <b>{ $model_name }</b>
-    💰 Цена: <code>{ $price } руб.</code>
+    💰 Цена: <code>{ $price }</code>
 
 main_menu_button = ⬅️ Главное меню
 to_categories_button = ⬅️ К категориям
@@ -160,5 +161,5 @@ cart_clear_button = 🧹 Очистить корзину
 cart_empty = 🛒 <b>Ваша корзина пуста</b>
 cart_header = <b>🛒 Содержимое корзины:</b>
 unknown_model = Неизвестно
-cart_item_line = { $index }. { $icon } { $model_name } — <code>{ $price } руб.</code>
-cart_total = <b>💰 Итого к оплате: { $total_sum } руб.</b>
+cart_item_line = { $index }. { $icon } { $model_name } — <code>{ $price }</code>
+cart_total = <b>💰 Итого к оплате: { $total_sum }</b>

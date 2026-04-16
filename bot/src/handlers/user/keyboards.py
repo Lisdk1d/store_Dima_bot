@@ -75,15 +75,20 @@ async def get_item_actions_keyboard(model_name: str, price: int | str, locale: T
 async def get_cart_actions_keyboard(cart_items: list[dict], locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
-    for index, _ in enumerate(cart_items):
-        builder.button(
+    remove_buttons = [
+        InlineKeyboardButton(
             text=locale.cart_remove_button(index=index + 1),
             callback_data=f"cart_remove|{index}"
         )
+        for index, _ in enumerate(cart_items)
+    ]
 
-    builder.button(text=locale.cart_clear_button(), callback_data="cart_clear")
-    # Keep remove/clear buttons in separate rows.
-    builder.adjust(1)
+    for i in range(0, len(remove_buttons), 2):
+        builder.row(*remove_buttons[i:i + 2])
+
+    builder.row(
+        InlineKeyboardButton(text=locale.cart_clear_button(), callback_data="cart_clear")
+    )
     # Explicitly place these two buttons in one row.
     builder.row(
         InlineKeyboardButton(text=locale.buy_button(), callback_data="cart_checkout"),

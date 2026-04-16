@@ -4,6 +4,7 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.default import DefaultBotProperties
+from aiogram.types import BotCommand, BotCommandScopeDefault, BotCommandScopeChat
 
 from fluentogram import TranslatorHub, FluentTranslator
 from fluent_compiler.bundle import FluentBundle
@@ -38,9 +39,24 @@ t_hub = TranslatorHub(
 )
 
 
-async def on_startup():
-
+async def on_startup(bot: Bot):
+    await setup_commands(bot)
     await db.check_connection()
+
+
+async def setup_commands(bot: Bot):
+    user_commands = [
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="cart", description="Открыть корзину"),
+    ]
+    admin_commands = user_commands + [
+        BotCommand(command="add", description="Добавить товар"),
+        BotCommand(command="del_from_db", description="Удалить товар"),
+    ]
+
+    await bot.set_my_commands(user_commands, scope=BotCommandScopeDefault())
+    for admin_id in settings.ADMIN_IDS:
+        await bot.set_my_commands(admin_commands, scope=BotCommandScopeChat(chat_id=admin_id))
 
 
 async def main():

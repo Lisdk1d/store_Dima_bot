@@ -1,5 +1,4 @@
 import logging
-import re
 
 from aiogram import Router, Bot, F
 from aiogram.types import CallbackQuery
@@ -14,7 +13,12 @@ from src.handlers.user.keyboards import (
 )
 from src.utils.db import db
 from src.utils.config import settings
-from .cart_utils import build_cart_text, build_manager_order_text, build_manager_product_request_text
+from .cart_utils import (
+    build_cart_text,
+    build_manager_order_text,
+    build_manager_product_request_text,
+    format_price_with_ruble,
+)
 
 
 from .keyboards import get_assortment_keyboard, get_models_keyboard
@@ -125,7 +129,7 @@ async def show_product_card(callback: CallbackQuery, locale: TranslatorRunner):
 
     text = (
         f"📱 <b>{product.get('model', locale.unknown_product_name())}</b>\n\n"
-        f"💰 <b>{product.get('price', locale.unknown_product_price())}</b>\n\n"
+        f"💰 <b>{format_price_with_ruble(product.get('price', locale.unknown_product_price()))}</b>\n\n"
         f"{product.get('description', locale.unknown_product_description())}\n\n"
     )
 
@@ -189,22 +193,10 @@ async def add_item_to_cart(callback: CallbackQuery, locale: TranslatorRunner):
         await callback.answer(locale.cart_product_not_found(), show_alert=True)
         return
 
-    raw_price = product.get("price", 0)
-    if isinstance(raw_price, (int, float)):
-        price = int(raw_price)
-    else:
-        # Parse first numeric chunk to avoid merging ranges like "80000/120000".
-        first_price_match = re.search(r"\d[\d\s,\.]*", str(raw_price))
-        if not first_price_match:
-            await callback.answer(locale.invalid_product_price(), show_alert=True)
-            return
-
-        normalized_price = re.sub(r"[^\d]", "", first_price_match.group(0))
-        if not normalized_price:
-            await callback.answer(locale.invalid_product_price(), show_alert=True)
-            return
-
-        price = int(normalized_price)
+    price = format_price_with_ruble(product.get("price", ""))
+    if not price:
+        await callback.answer(locale.invalid_product_price(), show_alert=True)
+        return
 
     await db.add_to_cart(
         user_id=callback.from_user.id,

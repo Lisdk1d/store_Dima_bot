@@ -1,4 +1,45 @@
+import re
+
 from fluentogram import TranslatorRunner
+
+
+def format_price_with_ruble(price: int | float | str | None) -> str:
+    raw_price = str(price or "").strip()
+    if not raw_price:
+        return ""
+    if "₽" in raw_price:
+        return raw_price
+    return f"{raw_price} ₽"
+
+
+def format_total_ruble(total_sum: int) -> str:
+    return f"{total_sum:,}".replace(",", " ") + " ₽"
+
+
+def _extract_numeric_price(price: int | float | str | None) -> int | None:
+    if isinstance(price, (int, float)):
+        return int(price)
+
+    if not isinstance(price, str):
+        return None
+
+    # Admin may save prices like:
+    # - "60000"
+    # - "10.000 - 12.000"
+    # - "80 000 — 120 000 ₽"
+    # We should not concatenate both ends of a range into one number.
+    # Instead, take the first numeric chunk (typically the lower bound).
+    price_str = price.strip()
+    match = re.search(r"\d[\d\s\.]*", price_str)
+    if not match:
+        return None
+
+    token = match.group(0)
+    digits = re.sub(r"\D", "", token)  # remove spaces/dots/currency
+    if not digits:
+        return None
+
+    return int(digits)
 
 
 def _resolve_item_icon(category_name: str, model_name: str) -> str:
@@ -31,18 +72,31 @@ def build_cart_text(cart_items: list[dict], locale: TranslatorRunner) -> str:
         return locale.cart_empty()
 
     total_sum = 0
+    has_numeric_prices = False
     lines: list[str] = [locale.cart_header(), ""]
 
     for index, item in enumerate(cart_items, start=1):
         model_name = item.get("model_name") or item.get("model", locale.unknown_model())
         category_name = str(item.get("category_name", ""))
         price = item.get("price", 0)
+        display_price = format_price_with_ruble(price)
         icon = _resolve_item_icon(category_name, model_name)
-        lines.append(locale.cart_item_line(index=index, icon=icon, model_name=model_name, price=price))
-        total_sum += price if isinstance(price, (int, float)) else 0
+        lines.append(
+            locale.cart_item_line(
+                index=index,
+                icon=icon,
+                model_name=model_name,
+                price=display_price,
+            )
+        )
+        numeric_price = _extract_numeric_price(price)
+        if numeric_price is not None:
+            total_sum += numeric_price
+            has_numeric_prices = True
 
-    lines.append("")
-    lines.append(locale.cart_total(total_sum=total_sum))
+    if has_numeric_prices:
+        lines.append("")
+        lines.append(locale.cart_total(total_sum=format_total_ruble(total_sum)))
     return "\n".join(lines)
 
 
@@ -77,5 +131,5 @@ def build_manager_product_request_text(
         username=username_text,
         user_id=user_id,
         model_name=model_name,
-        price=price,
+        price=format_price_with_ruble(price),
     )
