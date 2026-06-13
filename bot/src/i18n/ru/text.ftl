@@ -163,3 +163,90 @@ cart_header = <b>🛒 Содержимое корзины:</b>
 unknown_model = Неизвестно
 cart_item_line = { $index }. { $icon } { $model_name } — <code>{ $price }</code>
 cart_total = <b>💰 Итого к оплате: { $total_sum }</b>
+
+# --- Product editing (admin) ---
+edit_product_start =
+    ✏️ <b>Редактирование товара</b>
+
+    ➡️ Введите точное название модели товара для редактирования.
+edit_model_empty_error = Название модели не может быть пустым. Введите значение ещё раз:
+edit_not_found = Модель «{ $model_name }» не найдена в базе.
+edit_choose_field =
+    📱 <b>{ $model }</b>
+    📁 Категория: { $category }
+    💰 Цена: { $price }
+    📦 В наличии: { $stock }
+
+    Выберите поле для редактирования:
+edit_field_category = 📁 Категория
+edit_field_model = 📱 Модель
+edit_field_description = 📝 Описание
+edit_field_price = 💰 Цена
+edit_field_photo = 🖼 Фото
+edit_field_stock = 📦 Остаток
+edit_field_invalid = Неверное поле для редактирования
+edit_enter_new_value =
+    ✏️ Редактирование: <b>{ $field }</b>
+
+    Текущее значение: <code>{ $current_value }</code>
+
+    ➡️ Введите новое значение:
+edit_send_photo = ➡️ Отправьте новое фото товара:
+edit_value_empty_error = Значение не может быть пустым. Введите ещё раз:
+edit_stock_invalid = Введите целое число для остатка на складе.
+edit_success = ✅ Поле «{ $field }» обновлено: <code>{ $value }</code>
+edit_photo_success = ✅ Фото товара успешно обновлено!
+edit_failed = ❌ Не удалось обновить товар.
+
+# --- Delete category (admin) ---
+delete_category_start =
+    🗑️ <b>Удаление категории</b>
+
+    ⚠️ Будут удалены <b>все товары</b> в указанной категории.
+
+    📋 <b>Существующие категории:</b>
+
+    { $categories_list }
+
+    ➡️ Введите название категории для удаления:
+delete_category_success =
+    ✅ Категория «{ $category }» удалена.
+
+    🗑️ Удалено товаров: { $count }
+delete_category_not_found = Категория «{ $category }» не найдена.
+
+# --- Payment ---
+payment_choose_method = 💳 Выберите способ оплаты:
+payment_method_card = 💳 Банковская карта
+payment_method_sbp = 📲 СБП (перевод)
+payment_method_cash = 💵 Наличные при получении
+payment_method_crypto = 🪙 Криптовалюта
+payment_method_installment = 📅 Рассрочка
+payment_order_confirmed =
+    ✅ Заказ оформлен!
+
+    Способ оплаты: { $method }
+
+    Менеджер свяжется с вами для подтверждения и оплаты.
+payment_stub_success = ✅ Оплата проведена. Способ оплаты: { $method }
+
+# --- Delivery ---
+delivery_enter_address =
+    📍 <b>Адрес доставки</b>
+
+    Введите полный адрес доставки одним сообщением.
+
+    Минимум 10 символов.
+delivery_address_invalid =
+    ❌ Адрес слишком короткий или пустой.
+
+    Введите полный адрес доставки (минимум 10 символов).
+
+# --- Quantity ---
+quantity_enter =
+    📦 <b>Количество</b>
+
+    Товар: { $model }
+
+    Введите количество (целое число, от 1):
+quantity_invalid = Введите целое число от 1 и больше.

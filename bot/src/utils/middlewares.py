@@ -6,8 +6,6 @@ from fluentogram import TranslatorHub
 from aiogram import BaseMiddleware
 from aiogram.types import Update, Message
 from cachetools import TTLCache
-from motor.motor_asyncio import AsyncIOMotorClient
-
 logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s - %(levelname)s - %(message)s")
 
@@ -65,25 +63,6 @@ class ThrottlingMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-me
         if user_id in throttle_cache:
             return
         throttle_cache[user_id] = None
-        return await handler(event, data)
-
-
-class DataBaseMiddleware(BaseMiddleware):  # pylint: disable=too-few-public-methods
-    """
-    Data base middleware
-    """
-
-    def __init__(self, db: AsyncIOMotorClient):
-        super().__init__()
-        self.db = db
-
-    async def __call__(
-            self,
-            handler: Callable[[Update, Dict[str, Any]], Awaitable[Any]],
-            event: Update,
-            data: Dict[str, Any],
-    ) -> Any:
-        data["db"] = self.db
         return await handler(event, data)
 
 

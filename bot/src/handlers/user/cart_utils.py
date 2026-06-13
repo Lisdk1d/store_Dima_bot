@@ -66,6 +66,16 @@ def _resolve_item_icon(category_name: str, model_name: str) -> str:
     return "📱"
 
 
+def calculate_cart_total(cart_items: list[dict]) -> int:
+    """Sum numeric prices from cart items."""
+    total = 0
+    for item in cart_items:
+        numeric = _extract_numeric_price(item.get("price"))
+        if numeric is not None:
+            total += numeric
+    return total
+
+
 def build_cart_text(cart_items: list[dict], locale: TranslatorRunner) -> str:
     """Build user-friendly cart text with total sum."""
     if not cart_items:

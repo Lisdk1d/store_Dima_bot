@@ -122,6 +122,14 @@ async def process_price(message: Message, state: FSMContext, locale: TranslatorR
 @router.message(ProductForm.waiting_for_photo, F.photo, IsAdmin())
 async def process_photo(message: Message, state: FSMContext, locale: TranslatorRunner):
     data = await state.get_data()
+    photo_id = message.photo[-1].file_id
+    logger.info(
+        "process_photo: saving product category=%r model=%r photo_id=%s user_id=%s",
+        data.get("category"),
+        data.get("model"),
+        photo_id,
+        message.from_user.id,
+    )
 
     try:
         inserted_id = await db.add_product(
@@ -129,16 +137,26 @@ async def process_photo(message: Message, state: FSMContext, locale: TranslatorR
             model=data["model"],
             description=data["description"],
             price=data["price"],
-            photo_id=message.photo[-1].file_id,
-            stock=1
+            photo_id=photo_id,
+            stock=1,
         )
 
+        if not inserted_id:
+            logger.error(
+                "process_photo: add_product returned None for model=%r",
+                data.get("model"),
+            )
+            await message.answer(locale.product_added_error())
+            await state.clear()
+            return
+
+        logger.info("process_photo: product saved id=%s model=%r", inserted_id, data.get("model"))
         await message.answer(
             locale.product_added_success(
                 id=inserted_id,
                 category=data["category"],
                 model=data["model"],
-                price=format_price_with_ruble(data["price"])
+                price=format_price_with_ruble(data["price"]),
             )
         )
     except Exception as error:
@@ -146,6 +164,11 @@ async def process_photo(message: Message, state: FSMContext, locale: TranslatorR
         await message.answer(locale.product_added_error())
 
     await state.clear()
+
+
+@router.message(ProductForm.waiting_for_photo, IsAdmin())
+async def process_photo_invalid(message: Message, locale: TranslatorRunner):
+    await message.answer(locale.price_saved_next())
 
 
 @router.message(Command("del_from_db"), IsAdmin())
@@ -162,15 +185,15 @@ async def delete_process(message: Message, state: FSMContext, locale: Translator
         return
 
     try:
-        result = await db.products.delete_one({"model": model_name})
+        deleted = await db.delete_model_by_name(model_name)
     except Exception as error:
         logger.exception("Ошибка при удалении модели '%s': %s", model_name, error)
         await message.answer(locale.delete_model_error())
         return
 
-    if result.deleted_count > 0:
+    if deleted:
         await message.answer(locale.delete_success(model_name=model_name))
     else:
         await message.answer(locale.delete_not_found(model_name=model_name))
 
-
+    await state.clear()

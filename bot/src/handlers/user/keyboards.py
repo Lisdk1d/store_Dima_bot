@@ -53,11 +53,15 @@ async def get_models_keyboard(category: str, models: list, locale: TranslatorRun
     return builder.as_markup()
 
 
-async def get_item_actions_keyboard(model_name: str, price: int | str, locale: TranslatorRunner) -> InlineKeyboardMarkup:
+async def get_item_actions_keyboard(
+    model_name: str,
+    price: int | str,
+    locale: TranslatorRunner,
+    product_id: int | None = None,
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    # Keep callback payload compact and stable; price is resolved from DB on click.
     cart_callback_data = f"add_to_cart|{model_name}"
-    buy_callback_data = f"buy_product|{model_name}"
+    buy_callback_data = f"buy_product|{product_id or model_name}"
 
     builder.row(
         InlineKeyboardButton(text=locale.buy_button(), callback_data=buy_callback_data),

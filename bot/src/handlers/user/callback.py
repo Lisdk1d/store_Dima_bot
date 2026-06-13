@@ -2,6 +2,7 @@ import logging
 
 from aiogram import Router, Bot, F
 from aiogram.types import CallbackQuery
+from aiogram.fsm.context import FSMContext
 from fluentogram import TranslatorRunner
 from src.handlers.user.keyboards import (
     get_start_kb,
@@ -9,14 +10,11 @@ from src.handlers.user.keyboards import (
     get_cart_actions_keyboard,
     get_cart_empty_keyboard,
     get_info_back_keyboard,
-    get_manager_chat_keyboard,
 )
 from src.utils.db import db
-from src.utils.config import settings
-from .cart_utils import (
+from src.utils.states import CheckoutProcess
+from src.handlers.user.cart_utils import (
     build_cart_text,
-    build_manager_order_text,
-    build_manager_product_request_text,
     format_price_with_ruble,
 )
 
@@ -44,11 +42,21 @@ def _parse_add_to_cart_callback(callback_data: str) -> str | None:
     return model_name or None
 
 
-def _parse_buy_product_callback(callback_data: str) -> str | None:
+def _parse_buy_product_callback(callback_data: str) -> str | int | None:
     if not callback_data.startswith("buy_product|"):
         return None
-    model_name = callback_data[len("buy_product|"):].strip()
-    return model_name or None
+    payload = callback_data[len("buy_product|"):].strip()
+    if not payload:
+        return None
+    if payload.isdigit():
+        return int(payload)
+    return payload
+
+
+async def _resolve_product(identifier: str | int) -> dict | None:
+    if isinstance(identifier, int) or (isinstance(identifier, str) and identifier.isdigit()):
+        return await db.get_product_by_id(int(identifier))
+    return await db.get_product_details(str(identifier))
 
 
 @router.callback_query(lambda c: c.data == "reviews")
@@ -141,7 +149,8 @@ async def show_product_card(callback: CallbackQuery, locale: TranslatorRunner):
                 reply_markup=await get_item_actions_keyboard(
                     model_name=product.get("model", ""),
                     price=product.get("price", 0),
-                    locale=locale
+                    locale=locale,
+                    product_id=product.get("id"),
                 ),
                 parse_mode="HTML"
             )
@@ -151,7 +160,8 @@ async def show_product_card(callback: CallbackQuery, locale: TranslatorRunner):
                 reply_markup=await get_item_actions_keyboard(
                     model_name=product.get("model", ""),
                     price=product.get("price", 0),
-                    locale=locale
+                    locale=locale,
+                    product_id=product.get("id"),
                 ),
                 parse_mode="HTML"
             )
@@ -164,10 +174,13 @@ async def show_product_card(callback: CallbackQuery, locale: TranslatorRunner):
 
 @router.callback_query(F.data == "main_menu")
 async def back_to_main_menu(callback: CallbackQuery, locale: TranslatorRunner):
-    await callback.message.edit_text(
-        text=locale.welcome_text(name=callback.from_user.full_name),
-        reply_markup=get_start_kb(locale)
-    )
+    text = locale.welcome_text(name=callback.from_user.full_name)
+    markup = get_start_kb(locale)
+    try:
+        await callback.message.edit_text(text=text, reply_markup=markup)
+    except Exception:
+        await callback.message.answer(text=text, reply_markup=markup)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "del_card_with_exit")
@@ -284,7 +297,7 @@ async def remove_cart_item(callback: CallbackQuery, locale: TranslatorRunner):
 
 
 @router.callback_query(F.data == "cart_checkout")
-async def checkout_cart(callback: CallbackQuery, bot: Bot, locale: TranslatorRunner):
+async def checkout_cart(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
     if callback.from_user is None:
         await callback.answer(locale.user_not_defined(), show_alert=True)
         return
@@ -294,73 +307,34 @@ async def checkout_cart(callback: CallbackQuery, bot: Bot, locale: TranslatorRun
         await callback.answer(locale.cart_empty(), show_alert=True)
         return
 
-    order_text = build_manager_order_text(
-        cart_items=cart_items,
-        locale=locale,
-        full_name=callback.from_user.full_name,
-        username=callback.from_user.username,
-        user_id=callback.from_user.id,
-    )
-
-    sent_count = 0
-    for manager_id in settings.ADMIN_IDS:
-        try:
-            await bot.send_message(chat_id=manager_id, text=order_text, parse_mode="HTML")
-            sent_count += 1
-        except Exception as error:
-            logger.exception("Failed to send order to manager '%s': %s", manager_id, error)
-
-    if sent_count == 0:
-        await callback.answer(locale.cart_checkout_error(), show_alert=True)
-        return
-
-    await callback.answer(locale.cart_checkout_sent(), show_alert=True)
-    await callback.message.answer(
-        locale.cart_checkout_sent(),
-        reply_markup=await get_manager_chat_keyboard(locale)
-    )
+    await state.set_state(CheckoutProcess.waiting_for_address)
+    await state.update_data(checkout_type="cart")
+    await callback.message.edit_text(locale.delivery_enter_address(), parse_mode="HTML")
+    await callback.answer()
 
 
 @router.callback_query(F.data.startswith("buy_product|"))
-async def checkout_product_from_card(callback: CallbackQuery, bot: Bot, locale: TranslatorRunner):
+async def checkout_product_from_card(callback: CallbackQuery, state: FSMContext, locale: TranslatorRunner):
     if callback.from_user is None:
         await callback.answer(locale.user_not_defined(), show_alert=True)
         return
 
     callback_data = callback.data or ""
-    model_name = _parse_buy_product_callback(callback_data)
-    if not model_name:
+    identifier = _parse_buy_product_callback(callback_data)
+    if identifier is None:
         await callback.answer(locale.buy_request_error(), show_alert=True)
         return
 
-    product = await db.get_product_details(model_name)
+    product = await _resolve_product(identifier)
     if not product:
         await callback.answer(locale.cart_product_not_found(), show_alert=True)
         return
 
-    order_text = build_manager_product_request_text(
-        locale=locale,
-        full_name=callback.from_user.full_name,
-        username=callback.from_user.username,
-        user_id=callback.from_user.id,
-        model_name=product.get("model", model_name),
-        price=product.get("price", locale.unknown_product_price()),
-    )
-
-    sent_count = 0
-    for manager_id in settings.ADMIN_IDS:
-        try:
-            await bot.send_message(chat_id=manager_id, text=order_text, parse_mode="HTML")
-            sent_count += 1
-        except Exception as error:
-            logger.exception("Failed to send product request to manager '%s': %s", manager_id, error)
-
-    if sent_count == 0:
-        await callback.answer(locale.buy_request_error(), show_alert=True)
-        return
-
-    await callback.answer(locale.buy_request_sent(), show_alert=True)
+    product_id = product.get("id")
+    await state.set_state(CheckoutProcess.waiting_for_quantity)
+    await state.update_data(checkout_type="single", product_id=product_id)
     await callback.message.answer(
-        locale.buy_request_sent(),
-        reply_markup=await get_manager_chat_keyboard(locale)
+        locale.quantity_enter(model=product.get("model", "")),
+        parse_mode="HTML",
     )
+    await callback.answer()

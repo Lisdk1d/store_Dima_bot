@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shop Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-icon">🛒</span>
+          <div>
+            <h1>Shop Admin</h1>
+            <p>Панель продавца</p>
+          </div>
+        </div>
+        <nav>
+          <button class="nav-btn active" data-view="dashboard">📊 Дашборд</button>
+          <button class="nav-btn" data-view="orders">🧾 Заказы</button>
+          <button class="nav-btn" data-view="products">📦 Товары</button>
+          <button class="nav-btn" data-view="categories">📁 Категории</button>
+        </nav>
+        <div class="sidebar-footer">
+          <label class="api-key-label">API Key</label>
+          <input id="apiKey" type="password" placeholder="Введите API ключ" />
+        </div>
+      </aside>
+
+      <main class="content">
+        <header class="topbar">
+          <h2 id="pageTitle">Дашборд</h2>
+          <button id="refreshBtn" class="btn secondary">↻ Обновить</button>
+        </header>
+
+        <section id="dashboardView" class="view active">
+          <div class="stats-grid">
+            <article class="stat-card">
+              <span class="stat-label">Товаров</span>
+              <strong id="statProducts">—</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Заказов</span>
+              <strong id="statOrders">—</strong>
+            </article>
+            <article class="stat-card">
+              <span class="stat-label">Категорий</span>
+              <strong id="statCategories">—</strong>
+            </article>
+          </div>
+          <div class="hero-card">
+            <h3>Добро пожаловать</h3>
+            <p>Управляйте каталогом товаров, категориями и заказами из Telegram-бота.</p>
+          </div>
+          <div class="section-header">
+            <h3>Последние заказы</h3>
+          </div>
+          <div id="dashboardOrdersTable" class="table-wrap"></div>
+        </section>
+
+        <section id="ordersView" class="view">
+          <div id="ordersTable" class="table-wrap"></div>
+        </section>
+
+        <section id="productsView" class="view">
+          <div class="toolbar">
+            <input id="productSearch" type="search" placeholder="Поиск по названию или категории..." />
+            <button id="addProductBtn" class="btn primary">+ Добавить товар</button>
+          </div>
+          <div id="productsTable" class="table-wrap"></div>
+        </section>
+
+        <section id="categoriesView" class="view">
+          <div id="categoriesGrid" class="categories-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="productModal">
+      <form id="productForm" method="dialog">
+        <h3 id="modalTitle">Новый товар</h3>
+        <input type="hidden" id="editModelOriginal" />
+        <label>Категория<input id="fieldCategory" required /></label>
+        <label>Название<input id="fieldModel" required /></label>
+        <label>Описание<textarea id="fieldDescription" rows="3" required></textarea></label>
+        <label>Цена<input id="fieldPrice" required placeholder="1 000 ₽" /></label>
+        <label>Photo ID (Telegram)<input id="fieldPhoto" placeholder="AgACAg..." /></label>
+        <label>Остаток<input id="fieldStock" type="number" min="0" value="1" /></label>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancelModal">Отмена</button>
+          <button type="submit" class="btn primary">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast hidden"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
