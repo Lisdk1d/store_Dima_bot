@@ -1,3 +1,4 @@
+import html
 import logging
 
 from aiogram import Router, Bot, F
@@ -136,9 +137,9 @@ async def show_product_card(callback: CallbackQuery, locale: TranslatorRunner):
         return
 
     text = (
-        f"📱 <b>{product.get('model', locale.unknown_product_name())}</b>\n\n"
-        f"💰 <b>{format_price_with_ruble(product.get('price', locale.unknown_product_price()))}</b>\n\n"
-        f"{product.get('description', locale.unknown_product_description())}\n\n"
+        f"📱 <b>{html.escape(str(product.get('model') or locale.unknown_product_name()))}</b>\n\n"
+        f"💰 <b>{html.escape(format_price_with_ruble(product.get('price')) or locale.unknown_product_price())}</b>\n\n"
+        f"{html.escape(str(product.get('description') or locale.unknown_product_description()))}\n\n"
     )
 
     try:

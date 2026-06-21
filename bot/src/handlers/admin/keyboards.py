@@ -30,8 +30,6 @@ def get_payment_methods_keyboard(
         ("card", locale.payment_method_card()),
         ("sbp", locale.payment_method_sbp()),
         ("cash", locale.payment_method_cash()),
-        ("crypto", locale.payment_method_crypto()),
-        ("installment", locale.payment_method_installment()),
     ]
     for method_key, label in methods:
         builder.button(text=label, callback_data=f"{prefix}|{method_key}")

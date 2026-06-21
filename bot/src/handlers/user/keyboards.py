@@ -7,7 +7,7 @@ def get_start_kb(locale) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text=locale.asort_button(), callback_data="asort")
     builder.button(text=locale.cart_button(), callback_data="cart_show")
-    builder.button(text=locale.manager_button(), url="https://t.me/allvade")
+    builder.button(text=locale.manager_button(), url="https://t.me/whyyousoshweps")
     builder.button(text=locale.locale_button(), callback_data="address")
     builder.button(text=locale.trans_button(), callback_data="delivery")
     builder.button(text=locale.reviews_button(), callback_data="reviews")
@@ -120,6 +120,6 @@ async def get_info_back_keyboard(locale: TranslatorRunner) -> InlineKeyboardMark
 async def get_manager_chat_keyboard(locale: TranslatorRunner) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
-        InlineKeyboardButton(text=locale.manager_chat_button(), url="https://t.me/allvade")
+        InlineKeyboardButton(text=locale.manager_chat_button(), url="https://t.me/whyyousoshweps")
     )
     return builder.as_markup()

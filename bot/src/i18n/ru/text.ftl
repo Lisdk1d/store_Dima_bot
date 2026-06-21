@@ -16,7 +16,11 @@ trans_button = 🚚 Доставка
 reviews_button = ⭐ Отзывы
 site_button = 🌐 Сайт
 
-reviews_callback = ⭐ Тут список крутых отзывов!
+reviews_callback =
+    ⭐ <b>Отзывы покупателей</b>
+
+    Нам доверяют тысячи клиентов. Почитать реальные отзывы и оставить свой можно в нашем канале:
+    👉 @storedima_reviews
 
 locale_callback =
     🛍️ StoreDima 🛍️
@@ -77,6 +81,7 @@ price_saved_next =
     ➡️ Отправьте одно фото товара.
 
     После отправки фото товар будет добавлен в базу.
+photo_required_error = ⚠️ Нужно отправить именно фото товара (изображением, не файлом). Попробуйте ещё раз:
 
 product_added_success =
     ✅ Товар успешно добавлен в базу!
@@ -215,13 +220,21 @@ delete_category_success =
     🗑️ Удалено товаров: { $count }
 delete_category_not_found = Категория «{ $category }» не найдена.
 
+# --- Admin panel ---
+admin_access_denied = ⛔ У вас нет доступа к панели администратора.
+admin_panel_description =
+    🛠 <b>Панель администратора StoreDima</b>
+
+    Управляйте товарами, категориями и заказами прямо из Telegram.
+
+    Нажмите кнопку ниже, чтобы открыть веб-панель.
+admin_panel_button = 🛠 Открыть панель
+
 # --- Payment ---
 payment_choose_method = 💳 Выберите способ оплаты:
 payment_method_card = 💳 Банковская карта
 payment_method_sbp = 📲 СБП (перевод)
 payment_method_cash = 💵 Наличные при получении
-payment_method_crypto = 🪙 Криптовалюта
-payment_method_installment = 📅 Рассрочка
 payment_order_confirmed =
     ✅ Заказ оформлен!
 

@@ -212,19 +212,35 @@ nav {
   color: #fde047;
 }
 
+.status-badge.status-completed {
+  border-color: rgba(99, 102, 241, 0.45);
+  color: #c7d2fe;
+}
+
+.status-badge.status-cancelled {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+
 .toolbar {
   display: flex;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.toolbar input[type="search"] {
+.toolbar input[type="search"],
+.toolbar select {
   flex: 1;
   padding: 12px 14px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
+}
+
+.toolbar select {
+  flex: 0 0 200px;
+  cursor: pointer;
 }
 
 .btn {
@@ -317,14 +333,22 @@ dialog::backdrop {
   background: rgba(0, 0, 0, 0.55);
 }
 
-#productForm {
+#productForm,
+#orderForm {
   padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-#productForm label {
+#productForm h3,
+#orderForm h3 {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+}
+
+#productForm label,
+#orderForm label {
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -333,13 +357,30 @@ dialog::backdrop {
 }
 
 #productForm input,
-#productForm textarea {
+#productForm textarea,
+#orderForm input,
+#orderForm textarea,
+#orderForm select {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
   font: inherit;
+  width: 100%;
+}
+
+#orderForm textarea {
+  resize: vertical;
+}
+
+#deleteOrderDialog {
+  padding: 22px;
+}
+
+#deleteOrderDialog p {
+  margin: 0 0 16px;
+  line-height: 1.5;
 }
 
 .modal-actions {

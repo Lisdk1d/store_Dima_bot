@@ -1,5 +1,6 @@
 """Checkout flow: quantity → delivery address → payment."""
 
+import html
 import logging
 
 from aiogram import Router, Bot, F
@@ -34,8 +35,6 @@ PAYMENT_METHOD_LABELS = {
     "card": "payment_method_card",
     "sbp": "payment_method_sbp",
     "cash": "payment_method_cash",
-    "crypto": "payment_method_crypto",
-    "installment": "payment_method_installment",
 }
 
 
@@ -152,9 +151,9 @@ async def checkout_back_to_product(callback: CallbackQuery, state: FSMContext, l
         return
 
     text = (
-        f"📱 <b>{product.get('model', locale.unknown_product_name())}</b>\n\n"
-        f"💰 <b>{format_price_with_ruble(product.get('price', ''))}</b>\n\n"
-        f"{product.get('description', '')}\n"
+        f"📱 <b>{html.escape(str(product.get('model') or locale.unknown_product_name()))}</b>\n\n"
+        f"💰 <b>{html.escape(format_price_with_ruble(product.get('price', '')))}</b>\n\n"
+        f"{html.escape(str(product.get('description') or ''))}\n"
     )
     markup = await get_item_actions_keyboard(
         model_name=product.get("model", ""),
@@ -205,8 +204,8 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
         payment_method=payment_method,
         total_amount=total_text,
         delivery_address=delivery_address,
-        status="confirmed",
-        payment_status="completed",
+        status="pending",
+        payment_status="pending",
     )
 
     if not order_id:
@@ -220,8 +219,8 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
         username=callback.from_user.username,
         user_id=callback.from_user.id,
     )
-    order_text += f"\n\n📍 <b>Адрес:</b> {delivery_address}"
-    order_text += f"\n💳 <b>Оплата:</b> {payment_label}"
+    order_text += f"\n\n📍 <b>Адрес:</b> {html.escape(delivery_address)}"
+    order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
     if await _notify_managers(bot, order_text) == 0:
@@ -230,9 +229,9 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
 
     await db.clear_cart(callback.from_user.id)
     await state.clear()
-    await callback.answer(locale.payment_stub_success(method=payment_label), show_alert=True)
+    await callback.answer(locale.payment_order_confirmed(method=payment_label), show_alert=True)
     await callback.message.answer(
-        locale.payment_stub_success(method=payment_label),
+        locale.payment_order_confirmed(method=payment_label),
         reply_markup=await get_manager_chat_keyboard(locale),
     )
 
@@ -285,8 +284,8 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
         payment_method=payment_method,
         total_amount=price_text,
         delivery_address=delivery_address,
-        status="confirmed",
-        payment_status="completed",
+        status="pending",
+        payment_status="pending",
     )
 
     if not order_id:
@@ -302,8 +301,8 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
         price=product.get("price", ""),
     )
     order_text += f"\n📦 <b>Количество:</b> {quantity}"
-    order_text += f"\n📍 <b>Адрес:</b> {delivery_address}"
-    order_text += f"\n💳 <b>Оплата:</b> {payment_label}"
+    order_text += f"\n📍 <b>Адрес:</b> {html.escape(delivery_address)}"
+    order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
     if await _notify_managers(bot, order_text) == 0:
@@ -311,8 +310,8 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
         return
 
     await state.clear()
-    await callback.answer(locale.payment_stub_success(method=payment_label), show_alert=True)
+    await callback.answer(locale.payment_order_confirmed(method=payment_label), show_alert=True)
     await callback.message.answer(
-        locale.payment_stub_success(method=payment_label),
+        locale.payment_order_confirmed(method=payment_label),
         reply_markup=await get_manager_chat_keyboard(locale),
     )

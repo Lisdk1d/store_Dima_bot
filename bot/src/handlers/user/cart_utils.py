@@ -1,3 +1,4 @@
+import html
 import re
 
 from fluentogram import TranslatorRunner
@@ -95,8 +96,8 @@ def build_cart_text(cart_items: list[dict], locale: TranslatorRunner) -> str:
             locale.cart_item_line(
                 index=index,
                 icon=icon,
-                model_name=model_name,
-                price=display_price,
+                model_name=html.escape(str(model_name)),
+                price=html.escape(display_price),
             )
         )
         numeric_price = _extract_numeric_price(price)
@@ -120,8 +121,8 @@ def build_manager_order_text(
     username_text = f"@{username}" if username else locale.manager_order_username_missing()
     cart_items_text = build_cart_text(cart_items, locale)
     return locale.manager_order_text(
-        full_name=full_name,
-        username=username_text,
+        full_name=html.escape(full_name or ""),
+        username=html.escape(username_text),
         user_id=user_id,
         cart_items=cart_items_text,
     )
@@ -137,9 +138,9 @@ def build_manager_product_request_text(
 ) -> str:
     username_text = f"@{username}" if username else locale.manager_order_username_missing()
     return locale.manager_product_request_text(
-        full_name=full_name,
-        username=username_text,
+        full_name=html.escape(full_name or ""),
+        username=html.escape(username_text),
         user_id=user_id,
-        model_name=model_name,
-        price=format_price_with_ruble(price),
+        model_name=html.escape(str(model_name)),
+        price=html.escape(format_price_with_ruble(price)),
     )

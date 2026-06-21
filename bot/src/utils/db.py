@@ -442,6 +442,7 @@ class Database:
                     "total_amount": order.total_amount,
                     "delivery_address": order.delivery_address,
                     "delivery_fee": order.delivery_fee,
+                    "comment": order.comment,
                     "created_at": order.created_at.isoformat() if order.created_at else None,
                     "items": [
                         {
@@ -457,6 +458,101 @@ class Database:
 
     async def get_recent_orders(self, limit: int = 20) -> list[dict]:
         return await self.get_all_orders(limit=limit)
+
+    async def get_order_by_id(self, order_id: int) -> dict | None:
+        """Return a single order with user info and items."""
+        async with async_session() as session:
+            from sqlalchemy.orm import selectinload
+            order = await session.scalar(
+                select(Order)
+                .options(selectinload(Order.items), selectinload(Order.user))
+                .where(Order.id == order_id)
+            )
+            if not order:
+                return None
+            user = order.user
+            return {
+                "id": order.id,
+                "user_id": order.user_id,
+                "username": user.username if user else None,
+                "status": order.status,
+                "payment_method": order.payment_method,
+                "total_amount": order.total_amount,
+                "delivery_address": order.delivery_address,
+                "delivery_fee": order.delivery_fee,
+                "comment": order.comment,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "items": [
+                    {
+                        "model_name": item.model_name,
+                        "price": item.price,
+                        "category_name": item.category_name,
+                        "quantity": item.quantity,
+                    }
+                    for item in order.items
+                ],
+            }
+
+    async def update_order(self, order_id: int, **updates) -> bool:
+        """Update order fields and optionally replace order items."""
+        items = updates.pop("items", None)
+        payment_method = updates.pop("payment_method", None)
+        try:
+            async with async_session() as session:
+                from sqlalchemy.orm import selectinload
+                order = await session.scalar(
+                    select(Order)
+                    .options(selectinload(Order.items), selectinload(Order.payment))
+                    .where(Order.id == order_id)
+                )
+                if not order:
+                    return False
+
+                for field, value in updates.items():
+                    if value is not None and hasattr(order, field):
+                        setattr(order, field, value)
+
+                if payment_method is not None:
+                    order.payment_method = payment_method
+                    if order.payment:
+                        order.payment.method = payment_method
+
+                if items is not None:
+                    for item in list(order.items):
+                        await session.delete(item)
+                    await session.flush()
+                    for item in items:
+                        session.add(
+                            OrderItem(
+                                order_id=order.id,
+                                model_name=item.get("model_name", ""),
+                                price=str(item.get("price", "")),
+                                category_name=item.get("category_name"),
+                                quantity=int(item.get("quantity", 1)),
+                            )
+                        )
+
+                await session.commit()
+                logger.info("Order updated: id=%s", order_id)
+                return True
+        except Exception as error:
+            logger.exception("Ошибка при обновлении заказа '%s': %s", order_id, error)
+            return False
+
+    async def delete_order(self, order_id: int) -> bool:
+        """Delete an order and its related items/payment (cascade)."""
+        try:
+            async with async_session() as session:
+                order = await session.scalar(select(Order).where(Order.id == order_id))
+                if not order:
+                    return False
+                await session.delete(order)
+                await session.commit()
+                logger.info("Order deleted: id=%s", order_id)
+                return True
+        except Exception as error:
+            logger.exception("Ошибка при удалении заказа '%s': %s", order_id, error)
+            return False
 
     async def get_products_count(self) -> int:
         async with async_session() as session:

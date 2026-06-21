@@ -88,6 +88,7 @@ async def setup_commands(bot: Bot):
         BotCommand(command="cart", description="Открыть корзину"),
     ]
     admin_commands = user_commands + [
+        BotCommand(command="admin", description="Панель администратора"),
         BotCommand(command="add", description="Добавить товар"),
         BotCommand(command="edit", description="Редактировать товар"),
         BotCommand(command="del_from_db", description="Удалить товар"),

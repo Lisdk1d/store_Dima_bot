@@ -168,7 +168,7 @@ async def process_photo(message: Message, state: FSMContext, locale: TranslatorR
 
 @router.message(ProductForm.waiting_for_photo, IsAdmin())
 async def process_photo_invalid(message: Message, locale: TranslatorRunner):
-    await message.answer(locale.price_saved_next())
+    await message.answer(locale.photo_required_error(), parse_mode="HTML")
 
 
 @router.message(Command("del_from_db"), IsAdmin())

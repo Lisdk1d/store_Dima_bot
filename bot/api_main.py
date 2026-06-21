@@ -42,6 +42,23 @@ class OrderItemResponse(BaseModel):
     quantity: int = 1
 
 
+class OrderItemUpdate(BaseModel):
+    model_name: str
+    price: str
+    category_name: str | None = None
+    quantity: int = 1
+
+
+class OrderUpdate(BaseModel):
+    status: str | None = None
+    payment_method: str | None = None
+    delivery_address: str | None = None
+    delivery_fee: str | None = None
+    comment: str | None = None
+    total_amount: str | None = None
+    items: list[OrderItemUpdate] | None = None
+
+
 class OrderResponse(BaseModel):
     id: int
     user_id: int
@@ -51,6 +68,7 @@ class OrderResponse(BaseModel):
     total_amount: str | None = None
     delivery_address: str | None = None
     delivery_fee: str | None = None
+    comment: str | None = None
     created_at: str | None = None
     items: list[OrderItemResponse]
 
@@ -132,6 +150,28 @@ async def list_categories():
 @app.get("/api/orders", response_model=list[OrderResponse], dependencies=[Depends(verify_api_key)])
 async def list_orders(limit: int = 100):
     return await db.get_all_orders(limit=limit)
+
+
+@app.patch("/api/orders/{order_id}", response_model=OrderResponse, dependencies=[Depends(verify_api_key)])
+async def update_order(order_id: int, payload: OrderUpdate):
+    updates = payload.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(status_code=400, detail="No fields to update")
+    success = await db.update_order(order_id, **updates)
+    if not success:
+        raise HTTPException(status_code=404, detail="Order not found")
+    order = await db.get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order
+
+
+@app.delete("/api/orders/{order_id}", dependencies=[Depends(verify_api_key)])
+async def delete_order(order_id: int):
+    success = await db.delete_order(order_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"status": "deleted"}
 
 
 @app.post("/api/products", dependencies=[Depends(verify_api_key)])

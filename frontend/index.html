@@ -66,6 +66,16 @@
         </section>
 
         <section id="ordersView" class="view">
+          <div class="toolbar">
+            <input id="orderSearch" type="search" placeholder="Поиск по номеру заказа или пользователю..." />
+            <select id="orderStatusFilter">
+              <option value="">Все статусы</option>
+              <option value="pending">Ожидает</option>
+              <option value="confirmed">Подтверждён</option>
+              <option value="completed">Выполнен</option>
+              <option value="cancelled">Отменён</option>
+            </select>
+          </div>
           <div id="ordersTable" class="table-wrap"></div>
         </section>
 
@@ -98,6 +108,50 @@
           <button type="submit" class="btn primary">Сохранить</button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="orderModal">
+      <form id="orderForm" method="dialog">
+        <h3 id="orderModalTitle">Редактировать заказ</h3>
+        <label>
+          Статус
+          <select id="fieldOrderStatus" required>
+            <option value="pending">Ожидает</option>
+            <option value="confirmed">Подтверждён</option>
+            <option value="completed">Выполнен</option>
+            <option value="cancelled">Отменён</option>
+          </select>
+        </label>
+        <label>Адрес доставки<textarea id="fieldOrderDelivery" rows="2"></textarea></label>
+        <label>Способ / стоимость доставки<input id="fieldOrderDeliveryFee" placeholder="Курьер / 500 ₽" /></label>
+        <label>Комментарий<textarea id="fieldOrderComment" rows="2"></textarea></label>
+        <label>Итоговая сумма<input id="fieldOrderTotal" placeholder="10 000 ₽" /></label>
+        <label>
+          Способ оплаты
+          <select id="fieldOrderPayment">
+            <option value="">—</option>
+            <option value="sbp">СБП</option>
+            <option value="cash">Наличные при получении</option>
+            <option value="card">Банковская карта</option>
+          </select>
+        </label>
+        <label>
+          Товары (по одному на строку: название | цена | категория | кол-во)
+          <textarea id="fieldOrderItems" rows="4" required></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" id="cancelOrderModal">Отмена</button>
+          <button type="submit" class="btn primary">Сохранить</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deleteOrderDialog">
+      <p id="deleteOrderMessage">Удалить заказ?</p>
+      <div class="modal-actions">
+        <button type="button" class="btn secondary" id="cancelDeleteOrder">Отмена</button>
+        <button type="button" class="btn danger" id="deleteOrderConfirm">Удалить</button>
+      </div>
     </dialog>
 
     <div id="toast" class="toast hidden"></div>

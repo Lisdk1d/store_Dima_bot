@@ -2,12 +2,13 @@ import logging
 
 from aiogram import Router, F
 from aiogram.filters import Command, StateFilter
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.fsm.context import FSMContext
 from fluentogram import TranslatorRunner
 
 from src.utils.states import EditProductForm, DeleteCategoryProcess
 from src.utils.filters import IsAdmin
+from src.utils.config import settings
 from src.utils.db import db
 from src.handlers.user.cart_utils import format_price_with_ruble
 from .keyboards import get_edit_field_keyboard
@@ -23,6 +24,43 @@ EDITABLE_FIELDS = {
     "photo": "photo",
     "stock": "stock",
 }
+
+
+def field_label(locale: TranslatorRunner, field: str) -> str:
+    """Human-readable RU label for an editable product field."""
+    labels = {
+        "category": locale.edit_field_category,
+        "model": locale.edit_field_model,
+        "description": locale.edit_field_description,
+        "price": locale.edit_field_price,
+        "photo": locale.edit_field_photo,
+        "stock": locale.edit_field_stock,
+    }
+    getter = labels.get(field)
+    return getter() if getter else field
+
+
+@router.message(Command("admin"))
+async def cmd_admin(message: Message, locale: TranslatorRunner):
+    if message.from_user is None or message.from_user.id not in settings.ADMIN_IDS:
+        await message.answer(locale.admin_access_denied())
+        return
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=locale.admin_panel_button(),
+                    web_app=WebAppInfo(url=settings.ADMIN_PANEL_URL),
+                )
+            ]
+        ]
+    )
+    await message.answer(
+        locale.admin_panel_description(),
+        parse_mode="HTML",
+        reply_markup=keyboard,
+    )
 
 
 @router.message(Command("edit"), IsAdmin())
@@ -74,7 +112,7 @@ async def edit_choose_field(callback: CallbackQuery, state: FSMContext, locale: 
     else:
         current_value = product.get(field, "")
         await callback.message.answer(
-            locale.edit_enter_new_value(field=field, current_value=current_value),
+            locale.edit_enter_new_value(field=field_label(locale, field), current_value=current_value),
             parse_mode="HTML",
         )
         await state.set_state(EditProductForm.waiting_for_new_value)
@@ -107,7 +145,7 @@ async def edit_apply_value(message: Message, state: FSMContext, locale: Translat
         if field == "model":
             await state.update_data(original_model=new_value)
         await message.answer(
-            locale.edit_success(field=field, value=new_value),
+            locale.edit_success(field=field_label(locale, field), value=new_value),
             parse_mode="HTML",
         )
     else:
@@ -129,6 +167,7 @@ async def edit_apply_photo(message: Message, state: FSMContext, locale: Translat
         await message.answer(locale.edit_failed())
 
     await state.clear()
+
 
 
 @router.message(Command("del_category"), IsAdmin())

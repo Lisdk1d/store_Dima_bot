@@ -6,8 +6,6 @@ const PAYMENT_LABELS = {
   card: "Банковская карта",
   sbp: "СБП (перевод)",
   cash: "Наличные при получении",
-  crypto: "Криптовалюта",
-  installment: "Рассрочка",
 };
 
 const STATUS_LABELS = {
@@ -22,6 +20,9 @@ const state = {
   categories: [],
   orders: [],
   editingModel: null,
+  editingOrderId: null,
+  orderSaving: false,
+  orderDeleting: false,
 };
 
 const els = {
@@ -53,6 +54,23 @@ const els = {
   fieldStock: document.getElementById("fieldStock"),
   cancelModal: document.getElementById("cancelModal"),
   toast: document.getElementById("toast"),
+  orderSearch: document.getElementById("orderSearch"),
+  orderStatusFilter: document.getElementById("orderStatusFilter"),
+  orderModal: document.getElementById("orderModal"),
+  orderForm: document.getElementById("orderForm"),
+  orderModalTitle: document.getElementById("orderModalTitle"),
+  fieldOrderStatus: document.getElementById("fieldOrderStatus"),
+  fieldOrderDelivery: document.getElementById("fieldOrderDelivery"),
+  fieldOrderDeliveryFee: document.getElementById("fieldOrderDeliveryFee"),
+  fieldOrderComment: document.getElementById("fieldOrderComment"),
+  fieldOrderTotal: document.getElementById("fieldOrderTotal"),
+  fieldOrderPayment: document.getElementById("fieldOrderPayment"),
+  fieldOrderItems: document.getElementById("fieldOrderItems"),
+  cancelOrderModal: document.getElementById("cancelOrderModal"),
+  deleteOrderDialog: document.getElementById("deleteOrderDialog"),
+  deleteOrderConfirm: document.getElementById("deleteOrderConfirm"),
+  cancelDeleteOrder: document.getElementById("cancelDeleteOrder"),
+  deleteOrderMessage: document.getElementById("deleteOrderMessage"),
 };
 
 els.apiKey.value = localStorage.getItem("shop_admin_api_key") || DEFAULT_API_KEY;
@@ -142,13 +160,15 @@ function renderItemsCell(items) {
     .join("");
 }
 
-function renderOrdersTable(container, orders) {
+function renderOrdersTable(container, orders, { withActions = false } = {}) {
   if (!container) return;
 
   if (!orders?.length) {
     container.innerHTML = `<p class="empty-msg">Заказов пока нет</p>`;
     return;
   }
+
+  const actionsHeader = withActions ? "<th>Действия</th>" : "";
 
   container.innerHTML = `
     <table class="orders-table">
@@ -162,6 +182,7 @@ function renderOrdersTable(container, orders) {
           <th>Адрес доставки</th>
           <th>Оплата</th>
           <th>Статус</th>
+          ${actionsHeader}
         </tr>
       </thead>
       <tbody>
@@ -187,11 +208,158 @@ function renderOrdersTable(container, orders) {
             <td>${escapeHtml(order.delivery_address || "—")}</td>
             <td>${escapeHtml(paymentLabel(order.payment_method))}</td>
             <td><span class="status-badge status-${escapeHtml(order.status)}">${escapeHtml(statusLabel(order.status))}</span></td>
+            ${
+              withActions
+                ? `<td>
+              <div class="actions">
+                <button class="btn secondary" data-edit-order="${order.id}">✏️</button>
+                <button class="btn danger" data-delete-order="${order.id}">🗑</button>
+              </div>
+            </td>`
+                : ""
+            }
           </tr>`
           )
           .join("")}
       </tbody>
     </table>`;
+
+  if (withActions) {
+    container.querySelectorAll("[data-edit-order]").forEach((btn) => {
+      btn.addEventListener("click", () => openOrderModal(Number(btn.dataset.editOrder)));
+    });
+    container.querySelectorAll("[data-delete-order]").forEach((btn) => {
+      btn.addEventListener("click", () => openDeleteOrderDialog(Number(btn.dataset.deleteOrder)));
+    });
+  }
+}
+
+function getFilteredOrders() {
+  const query = (els.orderSearch?.value || "").trim().toLowerCase();
+  const status = els.orderStatusFilter?.value || "";
+
+  return state.orders.filter((order) => {
+    if (status && order.status !== status) return false;
+    if (!query) return true;
+    const idMatch = String(order.id).includes(query);
+    const userMatch =
+      String(order.user_id).includes(query) ||
+      (order.username || "").toLowerCase().includes(query);
+    return idMatch || userMatch;
+  });
+}
+
+function renderOrdersView() {
+  renderOrdersTable(els.ordersTable, getFilteredOrders(), { withActions: true });
+}
+
+function serializeOrderItems(rawText) {
+  const lines = rawText
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return lines.map((line) => {
+    const parts = line.split("|").map((part) => part.trim());
+    return {
+      model_name: parts[0] || "",
+      price: parts[1] || "",
+      category_name: parts[2] || null,
+      quantity: Number(parts[3] || 1),
+    };
+  });
+}
+
+function formatOrderItemsForEdit(items) {
+  if (!items?.length) return "";
+  return items
+    .map(
+      (item) =>
+        `${item.model_name} | ${item.price} | ${item.category_name || ""} | ${item.quantity ?? 1}`
+    )
+    .join("\n");
+}
+
+function openOrderModal(orderId) {
+  const order = state.orders.find((item) => item.id === orderId);
+  if (!order) return;
+
+  state.editingOrderId = orderId;
+  els.orderModalTitle.textContent = `Редактировать заказ #${orderId}`;
+  els.fieldOrderStatus.value = order.status || "pending";
+  els.fieldOrderDelivery.value = order.delivery_address || "";
+  els.fieldOrderDeliveryFee.value = order.delivery_fee || "";
+  els.fieldOrderComment.value = order.comment || "";
+  els.fieldOrderTotal.value = order.total_amount || "";
+  els.fieldOrderPayment.value = order.payment_method || "";
+  els.fieldOrderItems.value = formatOrderItemsForEdit(order.items);
+  els.orderModal.showModal();
+}
+
+function openDeleteOrderDialog(orderId) {
+  state.editingOrderId = orderId;
+  els.deleteOrderMessage.textContent = `Удалить заказ #${orderId}? Это действие нельзя отменить.`;
+  els.deleteOrderDialog.showModal();
+}
+
+async function saveOrder(event) {
+  event.preventDefault();
+  if (state.orderSaving || state.editingOrderId == null) return;
+
+  const items = serializeOrderItems(els.fieldOrderItems.value);
+  if (!items.length || items.some((item) => !item.model_name || !item.price)) {
+    showToast("Укажите товары в формате: название | цена | категория | кол-во", true);
+    return;
+  }
+
+  const payload = {
+    status: els.fieldOrderStatus.value,
+    delivery_address: els.fieldOrderDelivery.value.trim() || null,
+    delivery_fee: els.fieldOrderDeliveryFee.value.trim() || null,
+    comment: els.fieldOrderComment.value.trim() || null,
+    total_amount: els.fieldOrderTotal.value.trim() || null,
+    payment_method: els.fieldOrderPayment.value || null,
+    items,
+  };
+
+  state.orderSaving = true;
+  const submitBtn = els.orderForm.querySelector('button[type="submit"]');
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    await api(`/api/orders/${state.editingOrderId}`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+    els.orderModal.close();
+    showToast("Заказ обновлён");
+    await loadOrders();
+    renderOrdersView();
+  } catch (error) {
+    showToast(`Ошибка: ${error.message}`, true);
+  } finally {
+    state.orderSaving = false;
+    if (submitBtn) submitBtn.disabled = false;
+  }
+}
+
+async function confirmDeleteOrder() {
+  if (state.orderDeleting || state.editingOrderId == null) return;
+
+  state.orderDeleting = true;
+  els.deleteOrderConfirm.disabled = true;
+
+  try {
+    await api(`/api/orders/${state.editingOrderId}`, { method: "DELETE" });
+    els.deleteOrderDialog.close();
+    showToast("Заказ удалён");
+    state.editingOrderId = null;
+    await refreshAll();
+  } catch (error) {
+    showToast(`Ошибка: ${error.message}`, true);
+  } finally {
+    state.orderDeleting = false;
+    els.deleteOrderConfirm.disabled = false;
+  }
 }
 
 function renderProductsTable(filter = "") {
@@ -225,7 +393,7 @@ function renderProductsTable(filter = "") {
           .map(
             (product) => `
           <tr>
-            <td><strong>${escapeHtml(product.model)}</strong><br><small>${escapeHtml(product.description).slice(0, 80)}...</small></td>
+            <td><strong>${escapeHtml(product.model)}</strong><br><small>${escapeHtml(truncate(product.description, 80))}</small></td>
             <td>${escapeHtml(product.category)}</td>
             <td>${escapeHtml(product.price)}</td>
             <td>${product.stock}</td>
@@ -313,7 +481,7 @@ async function loadDashboard() {
 async function loadOrders() {
   state.orders = await api("/api/orders");
   renderOrdersTable(els.dashboardOrdersTable, state.orders.slice(0, 10));
-  renderOrdersTable(els.ordersTable, state.orders);
+  renderOrdersView();
 }
 
 async function loadProducts() {
@@ -361,6 +529,11 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;");
 }
 
+function truncate(value, max) {
+  const text = String(value ?? "").trim();
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
 function escapeAttr(value) {
   return escapeHtml(value).replaceAll("'", "&#39;");
 }
@@ -371,8 +544,14 @@ document.querySelectorAll(".nav-btn").forEach((btn) => {
 
 els.refreshBtn.addEventListener("click", refreshAll);
 els.productSearch.addEventListener("input", () => renderProductsTable(els.productSearch.value));
+els.orderSearch?.addEventListener("input", renderOrdersView);
+els.orderStatusFilter?.addEventListener("change", renderOrdersView);
 els.addProductBtn.addEventListener("click", openCreateModal);
 els.cancelModal.addEventListener("click", () => els.productModal.close());
+els.cancelOrderModal?.addEventListener("click", () => els.orderModal.close());
+els.orderForm?.addEventListener("submit", saveOrder);
+els.deleteOrderConfirm?.addEventListener("click", confirmDeleteOrder);
+els.cancelDeleteOrder?.addEventListener("click", () => els.deleteOrderDialog.close());
 
 els.productForm.addEventListener("submit", async (event) => {
   event.preventDefault();

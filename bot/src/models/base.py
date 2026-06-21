@@ -31,6 +31,7 @@ async def _migrate_schema() -> None:
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_address TEXT",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee VARCHAR(128)",
         "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1",
+        "ALTER TABLE orders ADD COLUMN IF NOT EXISTS comment TEXT",
     ]
     async with engine.begin() as conn:
         for stmt in statements:

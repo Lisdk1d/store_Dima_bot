@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     DB_NAME: str = "gorba_bot"
 
     ADMIN_IDS: list[int]
+    ADMIN_PANEL_URL: str = "https://localhost:13000"
 
     # Bot runtime
     BOT_MODE: str = "polling"  # polling | webhook

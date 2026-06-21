@@ -18,6 +18,7 @@ class Order(Base):
     total_amount: Mapped[str | None] = mapped_column(String(128), nullable=True)
     delivery_address: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivery_fee: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     user: Mapped["User"] = relationship(back_populates="orders")  # noqa: F821
