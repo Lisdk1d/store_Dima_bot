@@ -188,6 +188,9 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
 
     data = await state.get_data()
     delivery_address = data.get("delivery_address", "")
+    # Idempotency: drop the payment state up front so a rapid second tap no
+    # longer matches this handler and cannot create a duplicate order.
+    await state.set_state(None)
     cart_items = await db.get_cart(callback.from_user.id)
     if not cart_items:
         await callback.answer(locale.cart_empty(), show_alert=True)
@@ -261,6 +264,9 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
     data = await state.get_data()
     delivery_address = data.get("delivery_address", "")
     quantity = int(data.get("quantity", 1))
+    # Idempotency: drop the payment state up front so a rapid second tap no
+    # longer matches this handler and cannot create a duplicate order.
+    await state.set_state(None)
 
     product = await db.get_product_by_id(int(product_id_str))
     if not product:
