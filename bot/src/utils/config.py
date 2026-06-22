@@ -36,6 +36,10 @@ class Settings(BaseSettings):
     API_HOST: str = "0.0.0.0"
     API_PORT: int = 8000
     API_SECRET_KEY: str = "change-me-in-production"
+    # Admin panel auth: "initdata" (Telegram WebApp, default) | "devkey" (dev only).
+    ADMIN_AUTH_MODE: str = "initdata"
+    # Max age of Telegram WebApp initData accepted by the API (anti-replay).
+    INIT_DATA_MAX_AGE: int = 86400
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:13000",
@@ -66,10 +70,16 @@ class Settings(BaseSettings):
         placeholders, empty strings, or too-short keys. Set ENV=development
         to bypass for local runs.
         """
+        auth_mode = self.ADMIN_AUTH_MODE.strip().lower()
+        if auth_mode not in {"initdata", "devkey"}:
+            raise ValueError("ADMIN_AUTH_MODE must be 'initdata' or 'devkey'")
+
         if not self.is_production:
             return self
 
         problems: list[str] = []
+        if auth_mode == "devkey":
+            problems.append("ADMIN_AUTH_MODE=devkey is not allowed in production (use initdata)")
         if self.DB_PASS in _INSECURE_DB_PASSWORDS:
             problems.append("DB_PASS is empty or a known default; set a strong unique password")
         if self.API_SECRET_KEY in _INSECURE_API_KEYS:

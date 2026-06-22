@@ -2,14 +2,14 @@
 
 import logging
 from contextlib import asynccontextmanager
-from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Header
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import text
 
 from src.utils.config import settings
+from src.utils.auth import require_admin
 from src.utils.db import db
 from src.models import init_db
 from src.models.base import engine
@@ -73,26 +73,6 @@ class OrderResponse(BaseModel):
     items: list[OrderItemResponse]
 
 
-def _extract_api_key(
-    x_api_key: str | None,
-    authorization: str | None,
-) -> str | None:
-    if x_api_key:
-        return x_api_key
-    if authorization and authorization.lower().startswith("bearer "):
-        return authorization[7:].strip()
-    return None
-
-
-async def verify_api_key(
-    x_api_key: Annotated[str | None, Header()] = None,
-    authorization: Annotated[str | None, Header()] = None,
-) -> None:
-    token = _extract_api_key(x_api_key, authorization)
-    if token != settings.API_SECRET_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     try:
@@ -128,7 +108,7 @@ async def health():
         raise HTTPException(status_code=503, detail="Database unavailable") from error
 
 
-@app.get("/api/stats", dependencies=[Depends(verify_api_key)])
+@app.get("/api/stats", dependencies=[Depends(require_admin)])
 async def get_stats():
     return {
         "products_count": await db.get_products_count(),
@@ -137,22 +117,22 @@ async def get_stats():
     }
 
 
-@app.get("/api/products", dependencies=[Depends(verify_api_key)])
+@app.get("/api/products", dependencies=[Depends(require_admin)])
 async def list_products():
     return await db.get_all_products()
 
 
-@app.get("/api/categories", dependencies=[Depends(verify_api_key)])
+@app.get("/api/categories", dependencies=[Depends(require_admin)])
 async def list_categories():
     return await db.get_all_categories()
 
 
-@app.get("/api/orders", response_model=list[OrderResponse], dependencies=[Depends(verify_api_key)])
+@app.get("/api/orders", response_model=list[OrderResponse], dependencies=[Depends(require_admin)])
 async def list_orders(limit: int = 100):
     return await db.get_all_orders(limit=limit)
 
 
-@app.patch("/api/orders/{order_id}", response_model=OrderResponse, dependencies=[Depends(verify_api_key)])
+@app.patch("/api/orders/{order_id}", response_model=OrderResponse, dependencies=[Depends(require_admin)])
 async def update_order(order_id: int, payload: OrderUpdate):
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
@@ -166,7 +146,7 @@ async def update_order(order_id: int, payload: OrderUpdate):
     return order
 
 
-@app.delete("/api/orders/{order_id}", dependencies=[Depends(verify_api_key)])
+@app.delete("/api/orders/{order_id}", dependencies=[Depends(require_admin)])
 async def delete_order(order_id: int):
     success = await db.delete_order(order_id)
     if not success:
@@ -174,7 +154,7 @@ async def delete_order(order_id: int):
     return {"status": "deleted"}
 
 
-@app.post("/api/products", dependencies=[Depends(verify_api_key)])
+@app.post("/api/products", dependencies=[Depends(require_admin)])
 async def create_product(payload: ProductCreate):
     logger.info("API create_product: model=%s category=%s", payload.model, payload.category)
     product_id = await db.add_product(
@@ -190,7 +170,7 @@ async def create_product(payload: ProductCreate):
     return {"id": product_id}
 
 
-@app.patch("/api/products/{model_name}", dependencies=[Depends(verify_api_key)])
+@app.patch("/api/products/{model_name}", dependencies=[Depends(require_admin)])
 async def update_product(model_name: str, payload: ProductUpdate):
     updates = payload.model_dump(exclude_unset=True)
     success = await db.update_product(model_name, **updates)
@@ -199,7 +179,7 @@ async def update_product(model_name: str, payload: ProductUpdate):
     return {"status": "updated"}
 
 
-@app.delete("/api/products/{model_name}", dependencies=[Depends(verify_api_key)])
+@app.delete("/api/products/{model_name}", dependencies=[Depends(require_admin)])
 async def delete_product(model_name: str):
     success = await db.delete_model_by_name(model_name)
     if not success:
@@ -207,7 +187,7 @@ async def delete_product(model_name: str):
     return {"status": "deleted"}
 
 
-@app.delete("/api/categories/{category_name}", dependencies=[Depends(verify_api_key)])
+@app.delete("/api/categories/{category_name}", dependencies=[Depends(require_admin)])
 async def delete_category(category_name: str):
     count = await db.delete_category(category_name)
     if count == 0:
