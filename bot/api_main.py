@@ -4,9 +4,9 @@ import json
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import text
 
 from src.utils.config import settings
@@ -21,21 +21,21 @@ logger = logging.getLogger(__name__)
 
 
 class ProductCreate(BaseModel):
-    category: str
-    model: str
-    description: str
-    price: str
-    photo_id: str = ""
-    stock: int = 1
+    category: str = Field(min_length=1, max_length=255)
+    model: str = Field(min_length=1, max_length=512)
+    description: str = Field(min_length=1, max_length=4000)
+    price: str = Field(min_length=1, max_length=128)
+    photo_id: str = Field(default="", max_length=512)
+    stock: int = Field(default=1, ge=0, le=1_000_000)
 
 
 class ProductUpdate(BaseModel):
-    category: str | None = None
-    model: str | None = None
-    description: str | None = None
-    price: str | None = None
-    photo_id: str | None = None
-    stock: int | None = None
+    category: str | None = Field(default=None, min_length=1, max_length=255)
+    model: str | None = Field(default=None, min_length=1, max_length=512)
+    description: str | None = Field(default=None, min_length=1, max_length=4000)
+    price: str | None = Field(default=None, min_length=1, max_length=128)
+    photo_id: str | None = Field(default=None, max_length=512)
+    stock: int | None = Field(default=None, ge=0, le=1_000_000)
 
 
 class OrderItemResponse(BaseModel):
@@ -46,19 +46,19 @@ class OrderItemResponse(BaseModel):
 
 
 class OrderItemUpdate(BaseModel):
-    model_name: str
-    price: str
-    category_name: str | None = None
-    quantity: int = 1
+    model_name: str = Field(min_length=1, max_length=512)
+    price: str = Field(min_length=1, max_length=128)
+    category_name: str | None = Field(default=None, max_length=255)
+    quantity: int = Field(default=1, ge=1, le=100_000)
 
 
 class OrderUpdate(BaseModel):
-    status: str | None = None
-    payment_method: str | None = None
-    delivery_address: str | None = None
-    delivery_fee: str | None = None
-    comment: str | None = None
-    total_amount: str | None = None
+    status: str | None = Field(default=None, max_length=32)
+    payment_method: str | None = Field(default=None, max_length=64)
+    delivery_address: str | None = Field(default=None, max_length=4000)
+    delivery_fee: str | None = Field(default=None, max_length=128)
+    comment: str | None = Field(default=None, max_length=4000)
+    total_amount: str | None = Field(default=None, max_length=128)
     items: list[OrderItemUpdate] | None = None
 
 
@@ -157,7 +157,7 @@ async def list_categories():
 
 
 @app.get("/api/orders", response_model=list[OrderResponse], dependencies=[Depends(require_admin)])
-async def list_orders(limit: int = 100):
+async def list_orders(limit: int = Query(default=100, ge=1, le=500)):
     return await db.get_all_orders(limit=limit)
 
 
