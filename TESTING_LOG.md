@@ -42,10 +42,10 @@ cp .env.example .env   # fill BOT_TOKEN, ADMIN_IDS, secrets
 docker compose up --build -d
 
 # API health
-curl http://localhost:8000/health
+curl http://localhost:18000/health
 
 # API stats (replace key)
-curl -H "X-API-Key: change-me-in-production" http://localhost:8000/api/stats
+curl -H "X-API-Key: change-me-in-production" http://localhost:18000/api/stats
 ```
 
 ## Deployment Notes
