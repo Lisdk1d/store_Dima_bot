@@ -1,6 +1,10 @@
 // Empty string = same-origin (nginx proxies /api → backend in Docker).
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
-const DEFAULT_API_KEY = import.meta.env.VITE_API_SECRET_KEY ?? "";
+
+// Telegram WebApp: signed initData is the credential. No secret is baked in.
+const tg = window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
 
 const PAYMENT_LABELS = {
   card: "Банковская карта",
@@ -73,7 +77,7 @@ const els = {
   deleteOrderMessage: document.getElementById("deleteOrderMessage"),
 };
 
-els.apiKey.value = localStorage.getItem("shop_admin_api_key") || DEFAULT_API_KEY;
+els.apiKey.value = localStorage.getItem("shop_admin_dev_key") || "";
 
 function showToast(message, isError = false) {
   els.toast.textContent = message;
@@ -82,20 +86,29 @@ function showToast(message, isError = false) {
   setTimeout(() => els.toast.classList.add("hidden"), 3200);
 }
 
-function getApiKey() {
+function getDevKey() {
   const key = els.apiKey.value.trim();
-  localStorage.setItem("shop_admin_api_key", key);
+  localStorage.setItem("shop_admin_dev_key", key);
   return key;
 }
 
 async function api(path, options = {}) {
-  const apiKey = getApiKey();
+  const initData = tg?.initData || "";
   const headers = {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${apiKey}`,
-    "X-API-Key": apiKey,
     ...(options.headers || {}),
   };
+
+  if (initData) {
+    // Inside Telegram: authenticate with the signed initData payload.
+    headers.Authorization = `tma ${initData}`;
+    headers["X-Telegram-Init-Data"] = initData;
+  } else {
+    // Outside Telegram (local dev): fall back to a manually entered key.
+    const devKey = getDevKey();
+    if (devKey) headers["X-API-Key"] = devKey;
+  }
+
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
   if (!response.ok) {
     const detail = await response.text();

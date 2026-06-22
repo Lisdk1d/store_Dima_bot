@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shop Admin</title>
+    <!-- Telegram WebApp SDK: provides window.Telegram.WebApp.initData for auth. -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -29,8 +31,10 @@
           <button class="nav-btn" data-view="categories">📁 Категории</button>
         </nav>
         <div class="sidebar-footer">
-          <label class="api-key-label">API Key</label>
-          <input id="apiKey" type="password" placeholder="Введите API ключ" />
+          <!-- Auth is via Telegram WebApp initData. This dev-only fallback key
+               is used ONLY when the panel is opened outside Telegram. -->
+          <label class="api-key-label">Dev API Key (вне Telegram)</label>
+          <input id="apiKey" type="password" placeholder="только для локальной разработки" />
         </div>
       </aside>
 
