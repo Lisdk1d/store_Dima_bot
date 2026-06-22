@@ -1,7 +1,17 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Known insecure placeholder values that must never reach production.
+_INSECURE_API_KEYS = {"", "change-me-in-production"}
+_INSECURE_DB_PASSWORDS = {"", "gorba_secret"}
+_MIN_API_KEY_LENGTH = 16
 
 
 class Settings(BaseSettings):
+    # Deployment environment. "production" (default) enforces strict secret
+    # hygiene; set ENV=development for local runs with placeholder secrets.
+    ENV: str = "production"
+
     BOT_TOKEN: str
 
     # PostgreSQL
@@ -43,6 +53,37 @@ class Settings(BaseSettings):
     @property
     def webhook_url(self) -> str:
         return f"{self.WEBHOOK_HOST.rstrip('/')}{self.WEBHOOK_PATH}"
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV.strip().lower() in {"production", "prod"}
+
+    @model_validator(mode="after")
+    def _enforce_secret_hygiene(self) -> "Settings":
+        """Refuse to start in production with empty, default, or weak secrets.
+
+        Real user-supplied values are never rejected — only the known
+        placeholders, empty strings, or too-short keys. Set ENV=development
+        to bypass for local runs.
+        """
+        if not self.is_production:
+            return self
+
+        problems: list[str] = []
+        if self.DB_PASS in _INSECURE_DB_PASSWORDS:
+            problems.append("DB_PASS is empty or a known default; set a strong unique password")
+        if self.API_SECRET_KEY in _INSECURE_API_KEYS:
+            problems.append("API_SECRET_KEY is empty or the placeholder; generate a strong random key")
+        elif len(self.API_SECRET_KEY) < _MIN_API_KEY_LENGTH:
+            problems.append(f"API_SECRET_KEY is too short (min {_MIN_API_KEY_LENGTH} chars)")
+
+        if problems:
+            raise ValueError(
+                "Insecure configuration for ENV=production: "
+                + "; ".join(problems)
+                + ". (Set ENV=development for local runs with placeholder secrets.)"
+            )
+        return self
 
     model_config = SettingsConfigDict(env_file=(".env", "../.env"), extra="ignore")
 
