@@ -62,6 +62,20 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENV.strip().lower() in {"production", "prod"}
 
+    def webhook_preconditions(self) -> list[str]:
+        """Blocking config errors for webhook mode (empty when OK).
+
+        A webhook without a secret token lets anyone POST forged updates to the
+        public /webhook path, so the secret is mandatory in webhook mode.
+        """
+        errors: list[str] = []
+        if self.BOT_MODE.strip().lower() == "webhook":
+            if not self.WEBHOOK_HOST:
+                errors.append("WEBHOOK_HOST is required for webhook mode")
+            if not self.WEBHOOK_SECRET:
+                errors.append("WEBHOOK_SECRET must be set (non-empty) for webhook mode")
+        return errors
+
     @model_validator(mode="after")
     def _enforce_secret_hygiene(self) -> "Settings":
         """Refuse to start in production with empty, default, or weak secrets.

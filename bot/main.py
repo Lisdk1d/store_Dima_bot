@@ -176,10 +176,12 @@ async def run_webhook():
 
 async def main():
     mode = settings.BOT_MODE.lower()
+    config_errors = settings.webhook_preconditions()
+    if config_errors:
+        for error in config_errors:
+            logger.error(error)
+        sys.exit(1)
     if mode == "webhook":
-        if not settings.WEBHOOK_HOST:
-            logger.error("WEBHOOK_HOST is required for webhook mode")
-            sys.exit(1)
         await run_webhook()
     else:
         await run_polling()
