@@ -12,11 +12,13 @@ from sqlalchemy import text
 from src.utils.config import settings
 from src.utils.auth import AdminPrincipal, require_admin
 from src.utils.db import db
+from src.utils.logging_config import configure_logging
 from src.utils.payments import amounts_match, verify_webhook_signature
 from src.utils.request_context import get_request_id, new_request_id
 from src.models import init_db
 from src.models.base import engine
 
+configure_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -92,10 +94,12 @@ app = FastAPI(title="Shop Admin API", version="1.0.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    # No cookies are used (auth is via the initData header), so credentials and
+    # wildcard headers are unnecessary — allowlist exactly what the panel sends.
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Telegram-Init-Data", "X-API-Key"],
+    expose_headers=["X-Request-ID"],
 )
 logger.info("CORS allowed origins: %s", settings.CORS_ORIGINS)
 

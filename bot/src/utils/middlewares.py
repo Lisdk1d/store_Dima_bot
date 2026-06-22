@@ -6,8 +6,6 @@ from fluentogram import TranslatorHub
 from aiogram import BaseMiddleware
 from aiogram.types import Update, Message
 from cachetools import TTLCache
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Per-user throttle window: drops bursts faster than ~2 actions/second.
 # Tunable; keep small enough that normal menu navigation is not blocked.

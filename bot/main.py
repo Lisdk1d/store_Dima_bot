@@ -14,12 +14,13 @@ from fluentogram import TranslatorHub, FluentTranslator
 from fluent_compiler.bundle import FluentBundle
 
 from src.utils.config import settings
+from src.utils.logging_config import configure_logging
 from src.utils.middlewares import ThrottlingMiddleware, TranslateMiddleware, AlbumMiddleware
 from src.handlers import router as main_router
 from src.utils.db import db
 
 
-logging.basicConfig(level=logging.INFO)
+configure_logging()
 logger = logging.getLogger(__name__)
 
 _PLACEHOLDER_TOKENS = {
