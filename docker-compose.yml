@@ -55,8 +55,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
+        # No API_SECRET_KEY here — the panel authenticates via Telegram WebApp
+        # initData, so no secret is baked into the frontend bundle.
         VITE_API_URL: ${VITE_API_URL:-}
-        VITE_API_SECRET_KEY: ${API_SECRET_KEY:-change-me-in-production}
     container_name: gorba_frontend
     restart: unless-stopped
     ports:

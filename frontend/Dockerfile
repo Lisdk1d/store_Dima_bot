@@ -7,10 +7,10 @@ RUN npm install
 
 COPY . .
 
+# NOTE: never inject API_SECRET_KEY here — the panel authenticates via Telegram
+# WebApp initData, so no secret is baked into the shipped JS bundle.
 ARG VITE_API_URL=
-ARG VITE_API_SECRET_KEY=
 ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_API_SECRET_KEY=$VITE_API_SECRET_KEY
 
 RUN npm run build
 
