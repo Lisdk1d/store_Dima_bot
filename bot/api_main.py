@@ -1,9 +1,10 @@
 """FastAPI admin backend."""
 
+import json
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -11,6 +12,7 @@ from sqlalchemy import text
 from src.utils.config import settings
 from src.utils.auth import AdminPrincipal, require_admin
 from src.utils.db import db
+from src.utils.payments import amounts_match, verify_webhook_signature
 from src.utils.request_context import get_request_id, new_request_id
 from src.models import init_db
 from src.models.base import engine
@@ -235,3 +237,48 @@ async def delete_category(category_name: str, admin: AdminPrincipal = Depends(re
         raise HTTPException(status_code=404, detail="Category not found")
     await _audit(admin, "category.delete", "category", category_name, f"deleted_count={count}")
     return {"deleted_count": count}
+
+
+@app.post("/webhooks/payment/{provider}")
+async def payment_webhook(
+    provider: str,
+    request: Request,
+    x_signature: str | None = Header(default=None),
+):
+    """Payment-provider webhook: signature-verified, idempotent, amount-checked.
+
+    SCAFFOLD: the signature header name and JSON shape are provider-specific and
+    must be finalized when a provider is chosen. The endpoint is disabled until
+    PAYMENT_WEBHOOK_SECRET is set, and rejects any request without a valid HMAC.
+    """
+    if not settings.PAYMENT_WEBHOOK_SECRET:
+        raise HTTPException(status_code=503, detail="Payment webhook not configured")
+
+    body = await request.body()
+    if not verify_webhook_signature(body, x_signature, settings.PAYMENT_WEBHOOK_SECRET):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    try:
+        data = json.loads(body or b"{}")
+    except json.JSONDecodeError as error:
+        raise HTTPException(status_code=400, detail="Invalid JSON") from error
+
+    event_id = str(data.get("event_id") or data.get("id") or "")
+    if not event_id:
+        raise HTTPException(status_code=400, detail="Missing event id")
+    order_id = data.get("order_id")
+
+    # Idempotency: a repeated delivery of the same event is a no-op.
+    if not await db.record_payment_event(provider, event_id, order_id):
+        return {"status": "duplicate"}
+
+    # Never trust the amount from the payload — verify against the stored order.
+    if order_id is not None:
+        order = await db.get_order_by_id(int(order_id))
+        if order and not amounts_match(data.get("amount"), order.get("total_amount")):
+            logger.warning("Payment amount mismatch for order %s (provider=%s)", order_id, provider)
+            raise HTTPException(status_code=400, detail="Amount mismatch")
+
+    # TODO(provider): map provider status -> order/payment state once chosen.
+    logger.info("Payment event accepted: provider=%s event=%s order=%s", provider, event_id, order_id)
+    return {"status": "accepted"}

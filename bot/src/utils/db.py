@@ -13,6 +13,7 @@ from src.models import (
     Order,
     OrderItem,
     Payment,
+    PaymentEvent,
     Product,
     User,
     async_session,
@@ -587,6 +588,28 @@ class Database:
                 await session.commit()
         except Exception as error:
             logger.exception("Failed to write audit log (%s): %s", action, error)
+
+    async def record_payment_event(
+        self, provider: str, event_id: str, order_id: int | None = None
+    ) -> bool:
+        """Record a provider webhook event idempotently.
+
+        Returns True if newly recorded, False if this (provider, event_id) was
+        already processed — the caller should then treat the delivery as a
+        no-op.
+        """
+        try:
+            async with async_session() as session:
+                result = await session.execute(
+                    insert(PaymentEvent)
+                    .values(provider=provider, event_id=event_id, order_id=order_id)
+                    .on_conflict_do_nothing(index_elements=["provider", "event_id"])
+                )
+                await session.commit()
+                return result.rowcount > 0
+        except Exception as error:
+            logger.exception("Failed to record payment event %s/%s: %s", provider, event_id, error)
+            return False
 
 
 db = Database()

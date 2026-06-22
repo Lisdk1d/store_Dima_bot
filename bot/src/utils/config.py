@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     ADMIN_AUTH_MODE: str = "initdata"
     # Max age of Telegram WebApp initData accepted by the API (anti-replay).
     INIT_DATA_MAX_AGE: int = 86400
+    # Shared secret for verifying payment-provider webhook signatures.
+    # Empty disables the payment webhook endpoint (returns 503).
+    PAYMENT_WEBHOOK_SECRET: str = ""
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:13000",
