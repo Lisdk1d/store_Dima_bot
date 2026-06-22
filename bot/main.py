@@ -143,6 +143,12 @@ async def run_webhook():
     dp = create_dispatcher()
 
     app = web.Application()
+
+    async def healthz(_request):
+        return web.json_response({"status": "ok"})
+
+    app.router.add_get("/healthz", healthz)
+
     webhook_requests_handler = SimpleRequestHandler(
         dispatcher=dp,
         bot=bot,
