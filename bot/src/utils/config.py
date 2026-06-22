@@ -43,6 +43,22 @@ class Settings(BaseSettings):
     # Shared secret for verifying payment-provider webhook signatures.
     # Empty disables the payment webhook endpoint (returns 503).
     PAYMENT_WEBHOOK_SECRET: str = ""
+
+    # --- Online payment (YooKassa) ---
+    # Empty YOOKASSA_SHOP_ID disables online payment entirely: checkout shows only
+    # "cash on delivery" and the payment-page service answers 503.
+    YOOKASSA_SHOP_ID: str = ""
+    YOOKASSA_SECRET_KEY: str = ""
+    # Public HTTPS base URL of the payment page/webhook service, e.g. https://shop.example.
+    PAYMENT_PAGE_URL: str = ""
+    PAYMENT_API_HOST: str = "0.0.0.0"
+    PAYMENT_API_PORT: int = 8001
+    # HMAC secret for signing per-order payment links. Distinct from API_SECRET_KEY
+    # and PAYMENT_WEBHOOK_SECRET — a leaked link-secret should not grant admin access
+    # or let an attacker forge provider webhooks.
+    PAYMENT_LINK_SECRET: str = ""
+    PAYMENT_LINK_MAX_AGE: int = 1800
+
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://localhost:13000",
@@ -64,6 +80,10 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.ENV.strip().lower() in {"production", "prod"}
+
+    @property
+    def online_payment_enabled(self) -> bool:
+        return bool(self.YOOKASSA_SHOP_ID)
 
     def webhook_preconditions(self) -> list[str]:
         """Blocking config errors for webhook mode (empty when OK).
@@ -103,6 +123,16 @@ class Settings(BaseSettings):
             problems.append("API_SECRET_KEY is empty or the placeholder; generate a strong random key")
         elif len(self.API_SECRET_KEY) < _MIN_API_KEY_LENGTH:
             problems.append(f"API_SECRET_KEY is too short (min {_MIN_API_KEY_LENGTH} chars)")
+
+        if self.online_payment_enabled:
+            if not self.YOOKASSA_SECRET_KEY or len(self.YOOKASSA_SECRET_KEY) < _MIN_API_KEY_LENGTH:
+                problems.append("YOOKASSA_SECRET_KEY is missing or too short (min 16 chars)")
+            if self.PAYMENT_LINK_SECRET in _INSECURE_API_KEYS:
+                problems.append("PAYMENT_LINK_SECRET is empty; generate a strong random key")
+            elif len(self.PAYMENT_LINK_SECRET) < _MIN_API_KEY_LENGTH:
+                problems.append(f"PAYMENT_LINK_SECRET is too short (min {_MIN_API_KEY_LENGTH} chars)")
+            if not self.PAYMENT_PAGE_URL.startswith("https://"):
+                problems.append("PAYMENT_PAGE_URL must be an https:// URL when online payment is enabled")
 
         if problems:
             raise ValueError(

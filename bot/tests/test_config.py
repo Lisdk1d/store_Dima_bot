@@ -42,3 +42,47 @@ def test_development_allows_placeholders() -> None:
     settings = _make(ENV="development")
     assert settings.is_production is False
     assert settings.API_SECRET_KEY == "change-me-in-production"
+
+
+def test_online_payment_disabled_by_default() -> None:
+    settings = _make(ENV="production", DB_PASS="real-pass", API_SECRET_KEY="k" * 32)
+    assert settings.online_payment_enabled is False
+
+
+def test_production_rejects_online_payment_without_link_secret() -> None:
+    with pytest.raises(ValidationError):
+        _make(
+            ENV="production",
+            DB_PASS="real-pass",
+            API_SECRET_KEY="k" * 32,
+            YOOKASSA_SHOP_ID="shop-1",
+            YOOKASSA_SECRET_KEY="y" * 32,
+            PAYMENT_LINK_SECRET="",
+            PAYMENT_PAGE_URL="https://example.com",
+        )
+
+
+def test_production_rejects_online_payment_with_http_page_url() -> None:
+    with pytest.raises(ValidationError):
+        _make(
+            ENV="production",
+            DB_PASS="real-pass",
+            API_SECRET_KEY="k" * 32,
+            YOOKASSA_SHOP_ID="shop-1",
+            YOOKASSA_SECRET_KEY="y" * 32,
+            PAYMENT_LINK_SECRET="l" * 32,
+            PAYMENT_PAGE_URL="http://example.com",
+        )
+
+
+def test_production_accepts_fully_configured_online_payment() -> None:
+    settings = _make(
+        ENV="production",
+        DB_PASS="real-pass",
+        API_SECRET_KEY="k" * 32,
+        YOOKASSA_SHOP_ID="shop-1",
+        YOOKASSA_SECRET_KEY="y" * 32,
+        PAYMENT_LINK_SECRET="l" * 32,
+        PAYMENT_PAGE_URL="https://example.com",
+    )
+    assert settings.online_payment_enabled is True
