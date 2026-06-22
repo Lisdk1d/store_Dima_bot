@@ -20,6 +20,7 @@ async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit
 
 
 def _register_models() -> None:
+    import src.models.audit  # noqa: F401
     import src.models.order  # noqa: F401
     import src.models.product  # noqa: F401
     import src.models.user  # noqa: F401

@@ -8,6 +8,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from src.models import (
+    AuditLog,
     CartItem,
     Order,
     OrderItem,
@@ -557,6 +558,35 @@ class Database:
     async def get_products_count(self) -> int:
         async with async_session() as session:
             return await session.scalar(select(func.count()).select_from(Product)) or 0
+
+    async def add_audit_log(
+        self,
+        *,
+        actor_id: int,
+        actor_username: str | None,
+        action: str,
+        object_type: str | None = None,
+        object_id: str | int | None = None,
+        detail: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        """Record a sensitive admin action. Never raises into the caller."""
+        try:
+            async with async_session() as session:
+                session.add(
+                    AuditLog(
+                        actor_id=actor_id,
+                        actor_username=actor_username,
+                        action=action,
+                        object_type=object_type,
+                        object_id=str(object_id) if object_id is not None else None,
+                        detail=detail,
+                        request_id=request_id or None,
+                    )
+                )
+                await session.commit()
+        except Exception as error:
+            logger.exception("Failed to write audit log (%s): %s", action, error)
 
 
 db = Database()
