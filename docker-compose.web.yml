@@ -1,3 +1,5 @@
+name: gorba_bot_web
+
 services:
   api:
     build:
