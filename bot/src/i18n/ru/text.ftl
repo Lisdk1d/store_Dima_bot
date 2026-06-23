@@ -242,6 +242,19 @@ payment_order_confirmed =
 
     Менеджер свяжется с вами для подтверждения и оплаты.
 payment_stub_success = ✅ Оплата проведена. Способ оплаты: { $method }
+payment_open_link =
+    🧾 Заказ оформлен!
+
+    Нажмите кнопку ниже, чтобы перейти к оплате. Ссылка действует 30 минут.
+payment_pay_button = 💳 Оплатить
+payment_online_unavailable =
+    ⚠️ Онлайн-оплата временно недоступна.
+
+    Менеджер свяжется с вами для подтверждения и оплаты заказа.
+payment_succeeded_customer =
+    ✅ Оплата получена! Заказ <code>#{ $order_id }</code> оплачен.
+
+    Менеджер свяжется с вами по доставке.
 
 # --- Delivery ---
 delivery_enter_address =

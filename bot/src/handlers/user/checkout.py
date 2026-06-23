@@ -3,14 +3,17 @@
 import html
 import logging
 
+import httpx
 from aiogram import Router, Bot, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery, Message, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.fsm.context import FSMContext
 from fluentogram import TranslatorRunner
 
 from src.utils.states import CheckoutProcess
 from src.utils.db import db
 from src.utils.config import settings
+from src.utils.payment_links import sign_payment_token
+from src.utils.yookassa_client import create_payment, rubles_to_minor_units
 from src.handlers.admin.keyboards import get_payment_methods_keyboard
 from src.handlers.user.keyboards import (
     get_cart_actions_keyboard,
@@ -52,6 +55,65 @@ def get_payment_label(locale: TranslatorRunner, method: str) -> str:
 def validate_address(address: str) -> bool:
     text = (address or "").strip()
     return len(text) >= MIN_ADDRESS_LENGTH
+
+
+async def _start_online_payment(
+    callback: CallbackQuery,
+    bot: Bot,
+    locale: TranslatorRunner,
+    *,
+    order_id: int,
+    amount_text: str | None,
+    manager_fallback_text: str,
+) -> None:
+    """Create a YooKassa payment and send the customer a "Pay" WebApp button.
+
+    On any failure (online payment disabled, missing amount, YooKassa error) we
+    fall back to notifying managers so the order is never silently lost, and the
+    customer is told online payment is unavailable. Managers are NOT notified on
+    the happy path — that happens from the webhook once payment actually succeeds.
+    """
+    async def _fallback() -> None:
+        await notify_managers(bot, manager_fallback_text, settings.ADMIN_IDS)
+        await callback.message.answer(locale.payment_online_unavailable())
+
+    if not settings.online_payment_enabled or not amount_text:
+        logger.warning("Online payment unavailable for order %s; falling back to manager", order_id)
+        await _fallback()
+        return
+
+    try:
+        amount_value = rubles_to_minor_units(amount_text)
+        async with httpx.AsyncClient() as client:
+            payment = await create_payment(
+                client=client,
+                shop_id=settings.YOOKASSA_SHOP_ID,
+                secret_key=settings.YOOKASSA_SECRET_KEY,
+                amount_value=amount_value,
+                order_id=order_id,
+                description=f"Заказ #{order_id}",
+                return_url=f"{settings.PAYMENT_PAGE_URL.rstrip('/')}/pay/{order_id}",
+                idempotence_key=f"order-{order_id}-create",
+            )
+        await db.set_payment_provider_id(
+            order_id, provider="yookassa", provider_payment_id=str(payment["id"])
+        )
+    except Exception as error:
+        logger.exception("Failed to start online payment for order %s: %s", order_id, error)
+        await _fallback()
+        return
+
+    token = sign_payment_token(
+        order_id,
+        callback.from_user.id,
+        secret=settings.PAYMENT_LINK_SECRET,
+        ttl_seconds=settings.PAYMENT_LINK_MAX_AGE,
+    )
+    pay_url = f"{settings.PAYMENT_PAGE_URL.rstrip('/')}/pay/{order_id}?token={token}"
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[[InlineKeyboardButton(text=locale.payment_pay_button(), web_app=WebAppInfo(url=pay_url))]]
+    )
+    await callback.message.answer(locale.payment_open_link(), reply_markup=keyboard)
 
 
 # --- Quantity (single product) ---
@@ -96,7 +158,12 @@ async def process_delivery_address(
 
     await message.answer(
         locale.payment_choose_method(),
-        reply_markup=get_payment_methods_keyboard(locale, prefix=prefix, back_callback=back_callback),
+        reply_markup=get_payment_methods_keyboard(
+            locale,
+            prefix=prefix,
+            back_callback=back_callback,
+            online_enabled=settings.online_payment_enabled,
+        ),
     )
     await state.set_state(CheckoutProcess.waiting_for_payment)
 
@@ -216,17 +283,27 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
     order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
-    if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
-        await callback.answer(locale.cart_checkout_error(), show_alert=True)
-        return
-
+    # The cart has moved into the order's items — empty it regardless of method.
     await db.clear_cart(callback.from_user.id)
     await state.clear()
-    await callback.answer(locale.payment_order_confirmed(method=payment_label), show_alert=True)
-    await callback.message.answer(
-        locale.payment_order_confirmed(method=payment_label),
-        reply_markup=await get_manager_chat_keyboard(locale),
-    )
+    await callback.answer()
+
+    if payment_method == "cash":
+        # Cash: the manager notification IS the confirmation (no money moves online).
+        if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
+            await callback.answer(locale.cart_checkout_error(), show_alert=True)
+            return
+        await callback.message.answer(
+            locale.payment_order_confirmed(method=payment_label),
+            reply_markup=await get_manager_chat_keyboard(locale),
+        )
+    else:
+        # Card/SBP: create a YooKassa payment and send a "Pay" button. Managers are
+        # notified later, from the webhook, once payment actually succeeds.
+        await _start_online_payment(
+            callback, bot, locale,
+            order_id=order_id, amount_text=total_text, manager_fallback_text=order_text,
+        )
 
 
 @router.callback_query(F.data.startswith("pay_single|"), CheckoutProcess.waiting_for_payment)
@@ -301,13 +378,19 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
     order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
-    if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
-        await callback.answer(locale.buy_request_error(), show_alert=True)
-        return
-
     await state.clear()
-    await callback.answer(locale.payment_order_confirmed(method=payment_label), show_alert=True)
-    await callback.message.answer(
-        locale.payment_order_confirmed(method=payment_label),
-        reply_markup=await get_manager_chat_keyboard(locale),
-    )
+    await callback.answer()
+
+    if payment_method == "cash":
+        if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
+            await callback.answer(locale.buy_request_error(), show_alert=True)
+            return
+        await callback.message.answer(
+            locale.payment_order_confirmed(method=payment_label),
+            reply_markup=await get_manager_chat_keyboard(locale),
+        )
+    else:
+        await _start_online_payment(
+            callback, bot, locale,
+            order_id=order_id, amount_text=price_text, manager_fallback_text=order_text,
+        )

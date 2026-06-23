@@ -23,14 +23,21 @@ def get_payment_methods_keyboard(
     locale: TranslatorRunner,
     prefix: str = "pay",
     back_callback: str = "main_menu",
+    online_enabled: bool = True,
 ) -> InlineKeyboardMarkup:
-    """Payment method selection with configurable back button."""
+    """Payment method selection with configurable back button.
+
+    When online_enabled is False, only cash-on-delivery is offered (the online
+    card/SBP options are hidden because the bot cannot create a real payment).
+    """
     builder = InlineKeyboardBuilder()
     methods = [
         ("card", locale.payment_method_card()),
         ("sbp", locale.payment_method_sbp()),
         ("cash", locale.payment_method_cash()),
     ]
+    if not online_enabled:
+        methods = [(key, label) for key, label in methods if key == "cash"]
     for method_key, label in methods:
         builder.button(text=label, callback_data=f"{prefix}|{method_key}")
     builder.adjust(1)
