@@ -24,6 +24,7 @@ from src.handlers.user.cart_utils import (
     build_manager_product_request_text,
     calculate_cart_total,
     format_price_with_ruble,
+    notify_managers,
 )
 
 router = Router()
@@ -51,17 +52,6 @@ def get_payment_label(locale: TranslatorRunner, method: str) -> str:
 def validate_address(address: str) -> bool:
     text = (address or "").strip()
     return len(text) >= MIN_ADDRESS_LENGTH
-
-
-async def _notify_managers(bot: Bot, text: str) -> int:
-    sent = 0
-    for manager_id in settings.ADMIN_IDS:
-        try:
-            await bot.send_message(chat_id=manager_id, text=text, parse_mode="HTML")
-            sent += 1
-        except Exception as error:
-            logger.exception("Failed to notify manager %s: %s", manager_id, error)
-    return sent
 
 
 # --- Quantity (single product) ---
@@ -226,7 +216,7 @@ async def pay_cart_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, lo
     order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
-    if await _notify_managers(bot, order_text) == 0:
+    if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
         await callback.answer(locale.cart_checkout_error(), show_alert=True)
         return
 
@@ -311,7 +301,7 @@ async def pay_single_stub(callback: CallbackQuery, state: FSMContext, bot: Bot, 
     order_text += f"\n💳 <b>Оплата:</b> {html.escape(payment_label)}"
     order_text += f"\n🆔 <b>Заказ:</b> <code>#{order_id}</code>"
 
-    if await _notify_managers(bot, order_text) == 0:
+    if await notify_managers(bot, order_text, settings.ADMIN_IDS) == 0:
         await callback.answer(locale.buy_request_error(), show_alert=True)
         return
 

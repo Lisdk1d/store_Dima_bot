@@ -1,7 +1,27 @@
 import html
+import logging
 import re
 
+from aiogram import Bot
 from fluentogram import TranslatorRunner
+
+logger = logging.getLogger(__name__)
+
+
+async def notify_managers(bot: Bot, text: str, admin_ids: list[int]) -> int:
+    """Send an HTML message to every admin/manager; returns how many were reached.
+
+    Shared by the checkout handler and the payment-webhook service (a separate
+    process), so admin_ids is passed in rather than read from settings here.
+    """
+    sent = 0
+    for manager_id in admin_ids:
+        try:
+            await bot.send_message(chat_id=manager_id, text=text, parse_mode="HTML")
+            sent += 1
+        except Exception as error:
+            logger.exception("Failed to notify manager %s: %s", manager_id, error)
+    return sent
 
 
 def format_price_with_ruble(price: int | float | str | None) -> str:
