@@ -10,16 +10,24 @@ fi
 echo "==> Pulling latest changes..."
 git pull --ff-only || true
 
-echo "==> Building and starting containers..."
-docker compose down
-docker compose up -d --build
+echo "==> Ensuring shared Docker network exists..."
+docker network create gorba_net 2>/dev/null || true
+
+echo "==> Building and starting containers (postgres + bot)..."
+docker compose -f docker-compose.yml down
+docker compose -f docker-compose.yml up -d --build
 
 echo "==> Waiting for PostgreSQL..."
 sleep 8
 
+echo "==> Building and starting containers (api + payment-page)..."
+docker compose -f docker-compose.web.yml down
+docker compose -f docker-compose.web.yml up -d --build
+
 echo "==> Deployment complete."
 echo "Bot webhook URL should be: \${WEBHOOK_HOST}\${WEBHOOK_PATH}"
-echo "Admin panel: http://<server-ip>:3000"
-echo "Admin API: http://<server-ip>:8000/health"
+echo "Admin API: http://<server-ip>:18000/health"
+echo "Payment page: http://<server-ip>:18001/health"
+echo "Admin panel is deployed separately from the ../Gorba_admin_panel repo."
 
-docker compose ps
+docker compose -f docker-compose.yml -f docker-compose.web.yml ps
