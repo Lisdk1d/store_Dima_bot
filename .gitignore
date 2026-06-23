@@ -82,3 +82,9 @@ celerybeat-schedule
 celerybeat-schedule-wal
 *.db
 coffetime.db
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
