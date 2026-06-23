@@ -611,5 +611,76 @@ class Database:
             logger.exception("Failed to record payment event %s/%s: %s", provider, event_id, error)
             return False
 
+    async def set_payment_provider_id(
+        self, order_id: int, *, provider: str, provider_payment_id: str
+    ) -> bool:
+        """Stamp the provider and provider payment id onto an order's payment row."""
+        try:
+            async with async_session() as session:
+                result = await session.execute(
+                    update(Payment)
+                    .where(Payment.order_id == order_id)
+                    .values(provider=provider, provider_payment_id=provider_payment_id)
+                )
+                await session.commit()
+                return result.rowcount > 0
+        except Exception as error:
+            logger.exception("Failed to set provider id for order %s: %s", order_id, error)
+            return False
+
+    async def get_order_by_provider_payment_id(
+        self, provider: str, provider_payment_id: str
+    ) -> dict | None:
+        """Resolve the order a provider payment belongs to (webhook cross-check)."""
+        try:
+            async with async_session() as session:
+                payment = await session.scalar(
+                    select(Payment).where(
+                        Payment.provider == provider,
+                        Payment.provider_payment_id == provider_payment_id,
+                    )
+                )
+            if not payment:
+                return None
+            return await self.get_order_by_id(payment.order_id)
+        except Exception as error:
+            logger.exception(
+                "Failed to resolve order by provider payment %s/%s: %s",
+                provider,
+                provider_payment_id,
+                error,
+            )
+            return None
+
+    async def update_payment_status(
+        self,
+        order_id: int,
+        *,
+        status: str,
+        order_status: str | None = None,
+        details: str | None = None,
+    ) -> bool:
+        """Update Payment.status (+details) and optionally Order.status atomically."""
+        try:
+            async with async_session() as session:
+                payment = await session.scalar(
+                    select(Payment).where(Payment.order_id == order_id)
+                )
+                if not payment:
+                    return False
+                payment.status = status
+                if details is not None:
+                    payment.details = details
+                if order_status is not None:
+                    order = await session.get(Order, order_id)
+                    if order:
+                        order.status = order_status
+                await session.commit()
+                logger.info("Payment status updated: order=%s status=%s", order_id, status)
+                return True
+        except Exception as error:
+            logger.exception("Failed to update payment status for order %s: %s", order_id, error)
+            return False
+
 
 db = Database()

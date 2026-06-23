@@ -55,6 +55,11 @@ class Payment(Base):
     status: Mapped[str] = mapped_column(String(32), default="pending")
     amount: Mapped[str | None] = mapped_column(String(128), nullable=True)
     details: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Payment provider ("yookassa") and its payment id — links an order to the
+    # provider's payment independently of PaymentEvent (which dedupes webhook
+    # *deliveries*, not payment identity). NULL for cash orders.
+    provider: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    provider_payment_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     order: Mapped["Order"] = relationship(back_populates="payment")

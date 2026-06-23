@@ -33,6 +33,9 @@ async def _migrate_schema() -> None:
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_fee VARCHAR(128)",
         "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1",
         "ALTER TABLE orders ADD COLUMN IF NOT EXISTS comment TEXT",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider VARCHAR(32)",
+        "ALTER TABLE payments ADD COLUMN IF NOT EXISTS provider_payment_id VARCHAR(64)",
+        "CREATE INDEX IF NOT EXISTS ix_payments_provider_payment_id ON payments (provider_payment_id)",
     ]
     async with engine.begin() as conn:
         for stmt in statements:
