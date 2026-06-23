@@ -4,6 +4,7 @@ aiohappyeyeballs==2.6.1
 aiohttp==3.13.4
 aiosignal==1.4.0
 annotated-types==0.7.0
+anyio==4.14.0
 asyncpg==0.30.0
 attrs==25.4.0
 babel==2.18.0
@@ -15,6 +16,9 @@ fluent.syntax==0.19.0
 fluentogram==1.2.1
 frozenlist==1.8.0
 greenlet==3.3.2
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
 idna==3.15
 magic-filter==1.0.12
 multidict==6.7.1
