@@ -612,21 +612,47 @@ class Database:
             return False
 
     async def set_payment_provider_id(
-        self, order_id: int, *, provider: str, provider_payment_id: str
+        self,
+        order_id: int,
+        *,
+        provider: str,
+        provider_payment_id: str,
+        details: str | None = None,
     ) -> bool:
-        """Stamp the provider and provider payment id onto an order's payment row."""
+        """Stamp provider/payment id (and optionally details, e.g. confirmation_url)."""
+        values: dict = {"provider": provider, "provider_payment_id": provider_payment_id}
+        if details is not None:
+            values["details"] = details
         try:
             async with async_session() as session:
                 result = await session.execute(
-                    update(Payment)
-                    .where(Payment.order_id == order_id)
-                    .values(provider=provider, provider_payment_id=provider_payment_id)
+                    update(Payment).where(Payment.order_id == order_id).values(**values)
                 )
                 await session.commit()
                 return result.rowcount > 0
         except Exception as error:
             logger.exception("Failed to set provider id for order %s: %s", order_id, error)
             return False
+
+    async def get_payment_for_order(self, order_id: int) -> dict | None:
+        """Return the order's payment row (status/provider/details) or None."""
+        try:
+            async with async_session() as session:
+                payment = await session.scalar(
+                    select(Payment).where(Payment.order_id == order_id)
+                )
+                if not payment:
+                    return None
+                return {
+                    "status": payment.status,
+                    "method": payment.method,
+                    "provider": payment.provider,
+                    "provider_payment_id": payment.provider_payment_id,
+                    "details": payment.details,
+                }
+        except Exception as error:
+            logger.exception("Failed to fetch payment for order %s: %s", order_id, error)
+            return None
 
     async def get_order_by_provider_payment_id(
         self, provider: str, provider_payment_id: str

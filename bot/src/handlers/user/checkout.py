@@ -95,8 +95,12 @@ async def _start_online_payment(
                 return_url=f"{settings.PAYMENT_PAGE_URL.rstrip('/')}/pay/{order_id}",
                 idempotence_key=f"order-{order_id}-create",
             )
+        confirmation_url = (payment.get("confirmation") or {}).get("confirmation_url")
         await db.set_payment_provider_id(
-            order_id, provider="yookassa", provider_payment_id=str(payment["id"])
+            order_id,
+            provider="yookassa",
+            provider_payment_id=str(payment["id"]),
+            details=confirmation_url,
         )
     except Exception as error:
         logger.exception("Failed to start online payment for order %s: %s", order_id, error)
