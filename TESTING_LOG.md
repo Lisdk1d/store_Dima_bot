@@ -48,6 +48,26 @@ curl http://localhost:8000/health
 curl -H "X-API-Key: change-me-in-production" http://localhost:8000/api/stats
 ```
 
+## Online payment (YooKassa) — manual checklist
+
+Prereq: `YOOKASSA_SHOP_ID`/`YOOKASSA_SECRET_KEY` set (test shop), `PAYMENT_PAGE_URL`
+= public HTTPS host, `PAYMENT_LINK_SECRET` set, `payment-page` service running.
+
+- [ ] **Cash regression** — checkout → "Наличные при получении": order created,
+      manager notified immediately, customer sees "Заказ оформлен" (unchanged).
+- [ ] **Online disabled** — with empty `YOOKASSA_SHOP_ID`, checkout shows ONLY
+      cash; card/SBP buttons are hidden.
+- [ ] **Card/SBP happy path** — choose card → bot sends "Оплатить" WebApp button →
+      opens `/pay/{order_id}` → "Перейти к оплате" → YooKassa form → pay (test card)
+      → bot messages customer "Оплата получена" and managers get "Оплачен заказ";
+      order status becomes `confirmed`, payment `succeeded`.
+- [ ] **Expired link** — open `/pay/{order_id}?token=` after `PAYMENT_LINK_MAX_AGE`
+      → "Ссылка недействительна", no order data shown.
+- [ ] **Webhook idempotency** — re-deliver the same YooKassa event → second call
+      returns `{"status":"duplicate"}`, no duplicate notification.
+- [ ] **Amount tamper** — a forged webhook body cannot mark an order paid (status
+      is taken from the YooKassa re-fetch, not the body).
+
 ## Deployment Notes
 
 Recommended hosting: **VPS (Hetzner/DigitalOcean)** or **Railway** with Docker Compose.
