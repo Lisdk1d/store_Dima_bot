@@ -35,7 +35,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "${WEBAPP_PORT:-18080}:8080"
+      - "127.0.0.1:${WEBAPP_PORT:-18080}:8080"
     networks:
       - gorba_net
 
